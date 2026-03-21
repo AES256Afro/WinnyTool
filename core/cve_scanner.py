@@ -662,13 +662,44 @@ def _get_last_update_date():
             creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         )
         if result.returncode == 0 and result.stdout.strip():
-            date_str = result.stdout.strip().split()[0]
-            # Try common formats
-            for fmt in ("%m/%d/%Y", "%Y-%m-%d", "%d/%m/%Y", "%m-%d-%Y"):
+            raw = result.stdout.strip()
+            # PowerShell may return long form like "Tuesday, March 17, 2026 12:00:00 AM"
+            # or short form like "3/17/2026" -- try multiple strategies
+            # Strategy 1: Try parsing the full long-form string
+            for fmt in (
+                "%A, %B %d, %Y %I:%M:%S %p",   # Tuesday, March 17, 2026 12:00:00 AM
+                "%A, %B %d, %Y",                 # Tuesday, March 17, 2026
+                "%m/%d/%Y %I:%M:%S %p",          # 3/17/2026 12:00:00 AM
+            ):
                 try:
-                    return _dt.strptime(date_str, fmt).date()
+                    return _dt.strptime(raw, fmt).date()
                 except ValueError:
                     continue
+            # Strategy 2: Try just the date portion (first token or extracted)
+            # Remove day-of-week prefix if present
+            cleaned = raw
+            for day_name in ("Monday,", "Tuesday,", "Wednesday,", "Thursday,",
+                             "Friday,", "Saturday,", "Sunday,"):
+                if cleaned.startswith(day_name):
+                    cleaned = cleaned[len(day_name):].strip()
+                    break
+            for fmt in ("%B %d, %Y %I:%M:%S %p", "%B %d, %Y",
+                        "%m/%d/%Y", "%Y-%m-%d", "%d/%m/%Y", "%m-%d-%Y"):
+                try:
+                    return _dt.strptime(cleaned.split(" 12:")[0].strip() if "12:" in cleaned else cleaned, fmt).date()
+                except ValueError:
+                    continue
+            # Strategy 3: regex extract any date-like pattern
+            import re as _re
+            m = _re.search(r'(\d{1,2})/(\d{1,2})/(\d{4})', raw)
+            if m:
+                return _dt(int(m.group(3)), int(m.group(1)), int(m.group(2))).date()
+            m = _re.search(r'(\w+)\s+(\d{1,2}),?\s+(\d{4})', raw)
+            if m:
+                try:
+                    return _dt.strptime(f"{m.group(1)} {m.group(2)} {m.group(3)}", "%B %d %Y").date()
+                except ValueError:
+                    pass
     except Exception as exc:
         logger.debug("_get_last_update_date failed: %s", exc)
     return None
