@@ -657,12 +657,19 @@ def _version_affected(cve_entry: Dict, software_list: List[Dict[str, str]], os_v
 
 
 def _make_fix_action(reference_url: str, kb_patch: Optional[str] = None) -> Dict[str, str]:
-    """Create a fix_action dict with label and command (URL to open)."""
-    if kb_patch:
-        catalog_url = f"https://www.catalog.update.microsoft.com/Search.aspx?q={kb_patch}"
-        return {"label": f"Download {kb_patch}", "command": catalog_url}
+    """Create a fix_action dict with label and command (URL to open).
+
+    Prefers the MSRC advisory page (reference_url) because KB numbers are
+    often superseded and removed from the Microsoft Update Catalog.
+    The MSRC page always has current patch download links.
+    """
     if reference_url:
-        return {"label": "View Advisory", "command": reference_url}
+        label = f"CVE Fix Suggestion ({kb_patch})" if kb_patch else "CVE Fix Suggestion"
+        return {"label": label, "command": reference_url}
+    if kb_patch:
+        # Fallback to Update Catalog only if no advisory URL
+        catalog_url = f"https://www.catalog.update.microsoft.com/Search.aspx?q={kb_patch}"
+        return {"label": f"CVE Fix Suggestion ({kb_patch})", "command": catalog_url}
     return {}
 
 
