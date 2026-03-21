@@ -2525,27 +2525,47 @@ class WinnyToolApp:
                             f_btn_frame = ttk.Frame(f_frame, style="Card.TFrame")
                             f_btn_frame.pack(anchor="w", padx=(20, 0), pady=(4, 4))
 
-                            # View CVE / Advisory link
-                            ref_url = finding.get("reference_url", "")
-                            if ref_url:
-                                ttk.Button(
-                                    f_btn_frame,
-                                    text=">> View Details Online",
-                                    style="ViewAdvisory.TButton",
-                                    command=lambda url=ref_url: self._open_advisory(url),
-                                ).pack(side=tk.LEFT, padx=(0, 8))
-
-                            # Apply fix button
+                            # Buttons from fix_action (view/download/apply)
                             f_fix_action = finding.get("fix_action")
                             if f_fix_action and isinstance(f_fix_action, dict):
-                                apply_info = f_fix_action.get("apply") or f_fix_action
-                                if apply_info.get("command"):
+                                # View Advisory button
+                                view_info = f_fix_action.get("view")
+                                if view_info and view_info.get("command"):
+                                    ttk.Button(
+                                        f_btn_frame,
+                                        text=f">> {view_info.get('label', 'View Advisory')}",
+                                        style="ViewAdvisory.TButton",
+                                        command=lambda url=view_info["command"]: self._open_advisory(url),
+                                    ).pack(side=tk.LEFT, padx=(0, 8))
+
+                                # Download KB button
+                                download_info = f_fix_action.get("download")
+                                if download_info and download_info.get("command"):
+                                    ttk.Button(
+                                        f_btn_frame,
+                                        text=f">> {download_info.get('label', 'Download KB')}",
+                                        style="Accent.TButton",
+                                        command=lambda url=download_info["command"]: self._open_advisory(url),
+                                    ).pack(side=tk.LEFT, padx=(0, 8))
+
+                                # Apply fix / Open Windows Update button
+                                apply_info = f_fix_action.get("apply")
+                                if apply_info and apply_info.get("command"):
                                     ttk.Button(
                                         f_btn_frame,
                                         text=f">> {apply_info.get('label', 'Apply Fix')}",
                                         style="ApplyFix.TButton",
                                         command=lambda info=apply_info: self._apply_local_fix(info),
                                     ).pack(side=tk.LEFT, padx=(0, 8))
+
+                            # Fallback: direct reference_url if no fix_action
+                            elif finding.get("reference_url"):
+                                ttk.Button(
+                                    f_btn_frame,
+                                    text=">> View Details Online",
+                                    style="ViewAdvisory.TButton",
+                                    command=lambda url=finding["reference_url"]: self._open_advisory(url),
+                                ).pack(side=tk.LEFT, padx=(0, 8))
 
                             # Separator between findings
                             ttk.Separator(findings_container, orient="horizontal").pack(
