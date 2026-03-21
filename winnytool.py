@@ -9,6 +9,7 @@ from tkinter import ttk, messagebox, filedialog
 import threading
 import os
 import sys
+import json
 import ctypes
 import datetime
 
@@ -701,10 +702,40 @@ class WinnyToolApp:
 
         ttk.Button(
             btn_frame,
+            text="Import Folder",
+            style="Accent.TButton",
+            command=lambda: self._import_cve_folder(scroll),
+        ).pack(side=tk.LEFT, padx=(0, 8))
+
+        ttk.Button(
+            btn_frame,
             text="Add Manually",
             style="Accent.TButton",
             command=self._add_cve_manually_dialog,
         ).pack(side=tk.LEFT)
+
+        # --- Drag & drop zone ---
+        drop_frame = tk.Frame(scroll, bg="#1a2332", highlightbackground="#e74c6f",
+                              highlightthickness=2, cursor="hand2")
+        drop_frame.pack(fill=tk.X, padx=20, pady=(15, 5))
+        drop_inner = tk.Frame(drop_frame, bg="#1a2332")
+        drop_inner.pack(padx=20, pady=15)
+        tk.Label(
+            drop_inner, text="Drag & Drop CVE Files or Folders Here",
+            bg="#1a2332", fg="#8899aa", font=("Segoe UI", 11),
+        ).pack()
+        tk.Label(
+            drop_inner, text="Supports: Individual .json files, folders with CVE 5.x records, or .csv files",
+            bg="#1a2332", fg="#556677", font=("Segoe UI", 9),
+        ).pack()
+        tk.Label(
+            drop_inner,
+            text="(Or click 'Import File' / 'Import Folder' buttons above)",
+            bg="#1a2332", fg="#556677", font=("Segoe UI", 9, "italic"),
+        ).pack()
+        # Bind drop target using Windows OLE drag-drop via tkdnd if available,
+        # otherwise this is a visual hint to use the buttons
+        self._setup_drop_target(drop_frame, scroll)
 
         # Show cached results if available
         if "cve" in self.scan_results:
@@ -780,6 +811,163 @@ class WinnyToolApp:
                 self.root.after(0, lambda: self.status_var.set("Ready"))
 
         threading.Thread(target=do_import, daemon=True).start()
+
+    def _import_cve_folder(self, parent):
+        """Import CVEs from a folder of CVE 5.x JSON files (e.g., cve.org download)."""
+        folder = filedialog.askdirectory(title="Select CVE Folder (e.g., CVE-List or year folder)")
+        if not folder:
+            return
+
+        # Ask whether to filter by vendor
+        filter_choice = messagebox.askyesnocancel(
+            "Filter CVEs",
+            "Do you want to import only Windows/Microsoft CVEs?\n\n"
+            "Yes = Microsoft/Windows only\n"
+            "No = Import ALL CVEs (may be thousands)\n"
+            "Cancel = Abort",
+        )
+        if filter_choice is None:
+            return
+
+        vendor_filter = ["microsoft", "windows"] if filter_choice else None
+
+        self.status_var.set("Scanning folder for CVE files...")
+        self.root.update()
+
+        def do_folder_import():
+            try:
+                def progress_cb(done, total):
+                    self.root.after(0, lambda d=done, t=total:
+                        self.status_var.set(f"Processing CVE files... {d}/{t}"))
+
+                stats = cve_scanner.import_cves_from_folder(
+                    folder, filter_vendors=vendor_filter, progress_callback=progress_cb,
+                )
+                filter_text = " (Microsoft/Windows filter)" if vendor_filter else " (all vendors)"
+                self.root.after(0, lambda: messagebox.showinfo(
+                    "Folder Import Complete",
+                    f"Files scanned: {stats['scanned']}\n"
+                    f"Imported: {stats['imported']}{filter_text}\n"
+                    f"Skipped (duplicates/filtered): {stats['skipped']}\n"
+                    f"Errors: {stats['errors']}",
+                ))
+                self.root.after(0, lambda: self._show_cve())
+            except Exception as e:
+                self.root.after(0, lambda: messagebox.showerror(
+                    "Folder Import Failed", str(e),
+                ))
+            finally:
+                self.root.after(0, lambda: self.status_var.set("Ready"))
+
+        threading.Thread(target=do_folder_import, daemon=True).start()
+
+    def _setup_drop_target(self, drop_widget, parent_scroll):
+        """Set up drag-and-drop file/folder import on the given widget.
+
+        Uses tkdnd (tkinterdnd2) if available, otherwise falls back to
+        making the drop zone clickable as a file/folder picker.
+        """
+        try:
+            # Try to enable tkdnd if the extension is available
+            self.root.tk.eval('package require tkdnd')
+            drop_widget.tk.call('tkdnd::drop_target', 'register', drop_widget._w, ('DND_Files',))
+
+            def on_drop(event):
+                # event.data contains space-separated paths (braces around paths with spaces)
+                paths = self.root.tk.splitlist(event.data) if hasattr(event, 'data') else []
+                self._handle_dropped_paths(list(paths), parent_scroll)
+                return event.action if hasattr(event, 'action') else 'copy'
+
+            drop_widget.bind('<<Drop>>', on_drop)
+        except Exception:
+            # tkdnd not available - make the zone clickable as a fallback
+            def on_click(event):
+                choice = messagebox.askyesno(
+                    "Import CVEs",
+                    "Would you like to select a folder?\n\n"
+                    "Yes = Select folder of CVE files\n"
+                    "No = Select individual file(s)",
+                )
+                if choice:
+                    self._import_cve_folder(parent_scroll)
+                else:
+                    self._import_cve_file(parent_scroll)
+
+            drop_widget.bind('<Button-1>', on_click)
+            for child in drop_widget.winfo_children():
+                child.bind('<Button-1>', on_click)
+                for grandchild in child.winfo_children():
+                    grandchild.bind('<Button-1>', on_click)
+
+    def _handle_dropped_paths(self, paths, parent_scroll):
+        """Process dropped files/folders for CVE import."""
+        if not paths:
+            return
+
+        folders = [p for p in paths if os.path.isdir(p)]
+        files = [p for p in paths if os.path.isfile(p) and p.lower().endswith(('.json', '.csv'))]
+
+        if not folders and not files:
+            messagebox.showwarning("No CVE Files", "No .json or .csv files or folders found in drop.")
+            return
+
+        self.status_var.set("Processing dropped files...")
+        self.root.update()
+
+        def do_drop_import():
+            total_stats = {"scanned": 0, "imported": 0, "skipped": 0, "errors": 0}
+
+            # Import individual files
+            for fpath in files:
+                try:
+                    # Check if it's a CVE 5.x individual file or a WinnyTool-format file
+                    with open(fpath, "r", encoding="utf-8") as f:
+                        data = json.load(f)
+
+                    if isinstance(data, dict) and data.get("dataType") == "CVE_RECORD":
+                        # Single CVE 5.x file - use folder import on parent dir
+                        parsed = cve_scanner._parse_cve5_record(data)
+                        if parsed:
+                            try:
+                                cve_scanner.add_cve_manually(parsed)
+                                total_stats["imported"] += 1
+                            except ValueError:
+                                total_stats["skipped"] += 1
+                        else:
+                            total_stats["errors"] += 1
+                    else:
+                        # WinnyTool format or list format
+                        stats = cve_scanner.import_cves_from_file(fpath)
+                        total_stats["imported"] += stats["imported"]
+                        total_stats["skipped"] += stats["skipped"]
+                        total_stats["errors"] += stats["errors"]
+                    total_stats["scanned"] += 1
+                except Exception:
+                    total_stats["errors"] += 1
+                    total_stats["scanned"] += 1
+
+            # Import folders
+            for folder in folders:
+                try:
+                    stats = cve_scanner.import_cves_from_folder(folder)
+                    total_stats["scanned"] += stats["scanned"]
+                    total_stats["imported"] += stats["imported"]
+                    total_stats["skipped"] += stats["skipped"]
+                    total_stats["errors"] += stats["errors"]
+                except Exception:
+                    total_stats["errors"] += 1
+
+            self.root.after(0, lambda: messagebox.showinfo(
+                "Drop Import Complete",
+                f"Files scanned: {total_stats['scanned']}\n"
+                f"Imported: {total_stats['imported']}\n"
+                f"Skipped: {total_stats['skipped']}\n"
+                f"Errors: {total_stats['errors']}",
+            ))
+            self.root.after(0, lambda: self._show_cve())
+            self.root.after(0, lambda: self.status_var.set("Ready"))
+
+        threading.Thread(target=do_drop_import, daemon=True).start()
 
     def _add_cve_manually_dialog(self):
         """Show a dialog to manually add a CVE entry."""
