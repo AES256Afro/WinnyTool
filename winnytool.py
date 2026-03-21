@@ -2380,10 +2380,11 @@ class WinnyToolApp:
                 )
 
                 # Finding count on the right
-                findings = cat_data.get("findings", 0)
+                findings_list = cat_data.get("findings", [])
+                finding_count = len(findings_list) if isinstance(findings_list, list) else 0
                 ttk.Label(
                     cat_row,
-                    text=f"{findings} finding(s)",
+                    text=f"{finding_count} finding(s)",
                     style="Card.TLabel",
                     foreground=COLORS["text_secondary"],
                 ).pack(side=tk.RIGHT, padx=(0, 10))
@@ -2412,6 +2413,107 @@ class WinnyToolApp:
                     "<Configure>",
                     lambda e, c=bar_canvas, s=cat_score, cl=cat_color: draw_bar(c, s, cl, e),
                 )
+
+                # Expandable findings details
+                if isinstance(findings_list, list) and findings_list:
+                    # Container for findings (collapsed by default for Pass-heavy categories)
+                    fail_findings = [f for f in findings_list if f.get("status") in ("Fail", "Critical", "Warning")]
+                    if fail_findings:
+                        findings_container = ttk.Frame(cat_inner, style="Card.TFrame")
+                        findings_container.pack(fill=tk.X, pady=(8, 0))
+
+                        status_colors = {
+                            "Fail": "#ff1744", "Critical": "#ff1744",
+                            "Warning": "#ffd600", "Pass": "#00c853", "Info": "#00bcd4",
+                        }
+
+                        for finding in fail_findings:
+                            f_frame = ttk.Frame(findings_container, style="Card.TFrame")
+                            f_frame.pack(fill=tk.X, pady=2, padx=(10, 0))
+
+                            # Status + check name row
+                            f_top = ttk.Frame(f_frame, style="Card.TFrame")
+                            f_top.pack(fill=tk.X)
+
+                            f_status = finding.get("status", "Info")
+                            f_sev = finding.get("severity", "Medium")
+                            f_color = status_colors.get(f_status, "#00bcd4")
+
+                            status_lbl = ttk.Label(f_top, text=f"[{f_sev}]", style="Card.TLabel")
+                            status_lbl.pack(side=tk.LEFT, padx=(0, 6))
+                            status_lbl.configure(foreground=f_color, font=("Segoe UI", 9, "bold"))
+
+                            ttk.Label(
+                                f_top, text=finding.get("check", ""),
+                                style="Card.TLabel",
+                            ).pack(side=tk.LEFT)
+
+                            # Description
+                            f_details = finding.get("details", "")
+                            if f_details:
+                                ttk.Label(
+                                    f_frame, text=f_details, style="Card.TLabel",
+                                    wraplength=650,
+                                ).pack(anchor="w", padx=(20, 0), pady=(2, 0))
+
+                            # Software info
+                            f_sw = finding.get("affected_software", "")
+                            if f_sw:
+                                ttk.Label(
+                                    f_frame, text=f"Software: {f_sw}",
+                                    style="Card.TLabel", foreground=COLORS["text_secondary"],
+                                ).pack(anchor="w", padx=(20, 0), pady=(2, 0))
+
+                            # Manual fix instructions
+                            f_fix_desc = finding.get("fix_description", "")
+                            if f_fix_desc:
+                                fix_lbl = ttk.Label(
+                                    f_frame, text=f"How to fix: {f_fix_desc}",
+                                    style="Card.TLabel", wraplength=650,
+                                )
+                                fix_lbl.pack(anchor="w", padx=(20, 0), pady=(2, 0))
+                                fix_lbl.configure(foreground="#4fc3f7")
+
+                            # Fix suggestion (for non-CVE findings)
+                            f_fix_sug = finding.get("fix_suggestion", "")
+                            if f_fix_sug and not f_fix_desc:
+                                fix_lbl = ttk.Label(
+                                    f_frame, text=f"Suggested fix: {f_fix_sug}",
+                                    style="Card.TLabel", wraplength=650,
+                                )
+                                fix_lbl.pack(anchor="w", padx=(20, 0), pady=(2, 0))
+                                fix_lbl.configure(foreground="#4fc3f7")
+
+                            # Action buttons row
+                            f_btn_frame = ttk.Frame(f_frame, style="Card.TFrame")
+                            f_btn_frame.pack(anchor="w", padx=(20, 0), pady=(4, 4))
+
+                            # View CVE / Advisory link
+                            ref_url = finding.get("reference_url", "")
+                            if ref_url:
+                                ttk.Button(
+                                    f_btn_frame,
+                                    text=">> View Details Online",
+                                    style="ViewAdvisory.TButton",
+                                    command=lambda url=ref_url: self._open_advisory(url),
+                                ).pack(side=tk.LEFT, padx=(0, 8))
+
+                            # Apply fix button
+                            f_fix_action = finding.get("fix_action")
+                            if f_fix_action and isinstance(f_fix_action, dict):
+                                apply_info = f_fix_action.get("apply") or f_fix_action
+                                if apply_info.get("command"):
+                                    ttk.Button(
+                                        f_btn_frame,
+                                        text=f">> {apply_info.get('label', 'Apply Fix')}",
+                                        style="ApplyFix.TButton",
+                                        command=lambda info=apply_info: self._apply_local_fix(info),
+                                    ).pack(side=tk.LEFT, padx=(0, 8))
+
+                            # Separator between findings
+                            ttk.Separator(findings_container, orient="horizontal").pack(
+                                fill=tk.X, padx=10, pady=2,
+                            )
 
         # Top 5 recommendations
         recs = grade_result.get("top_recommendations", [])
