@@ -422,6 +422,20 @@ class WinnyToolApp:
 
         ttk.Button(
             self.sidebar,
+            text="  PDF Report",
+            style="Sidebar.TButton",
+            command=lambda: self._export_pdf_report(),
+        ).pack(fill=tk.X, padx=5, pady=1)
+
+        ttk.Button(
+            self.sidebar,
+            text="  Download All (ZIP)",
+            style="Sidebar.TButton",
+            command=lambda: self._export_zip_reports(),
+        ).pack(fill=tk.X, padx=5, pady=1)
+
+        ttk.Button(
+            self.sidebar,
             text="  Run Full Scan",
             style="Sidebar.TButton",
             command=self._run_full_scan,
@@ -3125,6 +3139,18 @@ class WinnyToolApp:
                     command=lambda: self._navigate("security_grade"),
                 ).pack(side=tk.LEFT, padx=5)
 
+                ttk.Button(
+                    btn_frame, text="PDF Report",
+                    style="Accent.TButton",
+                    command=lambda: self._export_pdf_report(all_results),
+                ).pack(side=tk.LEFT, padx=5)
+
+                ttk.Button(
+                    btn_frame, text="Download All (ZIP)",
+                    style="Accent.TButton",
+                    command=lambda: self._export_zip_reports(all_results),
+                ).pack(side=tk.LEFT, padx=5)
+
                 # --- View individual section buttons ---
                 view_frame = ttk.Frame(inner, style="Card.TFrame")
                 view_frame.pack(fill=tk.X, pady=(10, 5))
@@ -3298,6 +3324,40 @@ class WinnyToolApp:
             os.startfile(filepath)
         except Exception as e:
             messagebox.showerror("Export Error", f"Failed to export CSV report:\n{e}")
+
+    # ===== PDF Report Export =====
+    def _export_pdf_report(self, results=None):
+        """Export scan results as a PDF file."""
+        data = results or self.scan_results
+        if not any(data.values()):
+            messagebox.showinfo("No Data", "Run some scans first before exporting.")
+            return
+        try:
+            filepath = reporter.generate_report(data, format="pdf")
+            messagebox.showinfo(
+                "Report Exported",
+                f"PDF report saved to:\n{filepath}\n\nOpening...",
+            )
+            os.startfile(filepath)
+        except Exception as e:
+            messagebox.showerror("Export Error", f"Failed to export PDF report:\n{e}")
+
+    # ===== ZIP Reports Export =====
+    def _export_zip_reports(self, results=None):
+        """Export all report formats (HTML, Text, CSV, PDF) bundled in a ZIP file."""
+        data = results or self.scan_results
+        if not any(data.values()):
+            messagebox.showinfo("No Data", "Run some scans first before exporting.")
+            return
+        try:
+            filepath = reporter.generate_report(data, format="zip")
+            messagebox.showinfo(
+                "Reports Exported",
+                f"All reports bundled into:\n{filepath}\n\nOpening...",
+            )
+            os.startfile(filepath)
+        except Exception as e:
+            messagebox.showerror("Export Error", f"Failed to export ZIP reports:\n{e}")
 
     # ===== Export Report =====
     def _export_report(self):
