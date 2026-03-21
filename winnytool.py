@@ -3065,9 +3065,211 @@ class WinnyToolApp:
                     lbl.pack(anchor="w", pady=1)
                     lbl.configure(foreground=color)
 
+                # --- Action buttons ---
+                btn_frame = ttk.Frame(inner, style="Card.TFrame")
+                btn_frame.pack(fill=tk.X, pady=(15, 5))
+
+                ttk.Label(
+                    btn_frame, text="Export Results:", style="Card.TLabel"
+                ).pack(side=tk.LEFT, padx=(0, 10))
+
+                ttk.Button(
+                    btn_frame, text="HTML Report",
+                    style="Accent.TButton",
+                    command=self._export_report,
+                ).pack(side=tk.LEFT, padx=5)
+
+                ttk.Button(
+                    btn_frame, text="Text Report",
+                    style="Accent.TButton",
+                    command=lambda: self._export_text_report(all_results),
+                ).pack(side=tk.LEFT, padx=5)
+
+                ttk.Button(
+                    btn_frame, text="CSV Export",
+                    style="Accent.TButton",
+                    command=lambda: self._export_csv_report(all_results),
+                ).pack(side=tk.LEFT, padx=5)
+
+                ttk.Button(
+                    btn_frame, text="Security Grade",
+                    style="Accent.TButton",
+                    command=lambda: self._navigate("security_grade"),
+                ).pack(side=tk.LEFT, padx=5)
+
+                # --- View individual section buttons ---
+                view_frame = ttk.Frame(inner, style="Card.TFrame")
+                view_frame.pack(fill=tk.X, pady=(10, 5))
+
+                ttk.Label(
+                    view_frame, text="View Details:", style="Card.TLabel"
+                ).pack(side=tk.LEFT, padx=(0, 10))
+
+                page_map = {
+                    "CVE Scanner": "cve_scanner",
+                    "BSOD Analyzer": "bsod",
+                    "Performance": "performance",
+                    "Startup Items": "startup",
+                    "Disk Health": "disk_health",
+                    "Network": "network",
+                    "Windows Update": "winupdate",
+                    "System Hardening": "hardening",
+                }
+                for name, _, key in scans:
+                    count = len(all_results.get(key, []))
+                    if count > 0:
+                        page = page_map.get(name, "dashboard")
+                        ttk.Button(
+                            view_frame,
+                            text=f"{name} ({count})",
+                            command=lambda p=page: self._navigate(p),
+                        ).pack(side=tk.LEFT, padx=3, pady=2)
+
             self.root.after(0, show_summary)
 
         threading.Thread(target=full_scan, daemon=True).start()
+
+    # ===== Text Report Export =====
+    def _export_text_report(self, results=None):
+        """Export scan results as a plain text file."""
+        data = results or self.scan_results
+        if not any(data.values()):
+            messagebox.showinfo("No Data", "Run some scans first before exporting.")
+            return
+        try:
+            import datetime as _dt
+            desktop = os.path.join(os.path.expanduser("~"), "Desktop")
+            if not os.path.isdir(desktop):
+                desktop = os.path.join(os.path.expanduser("~"), "Documents")
+            filepath = os.path.join(desktop, f"WinnyTool_Report_{_dt.date.today()}.txt")
+
+            with open(filepath, "w", encoding="utf-8") as f:
+                f.write("=" * 70 + "\n")
+                f.write(f"  WinnyTool v{VERSION} - System Scan Report\n")
+                f.write(f"  Generated: {_dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+                f.write("=" * 70 + "\n\n")
+
+                section_names = {
+                    "cve": "CVE Scanner", "bsod": "BSOD Analyzer",
+                    "performance": "Performance", "startup": "Startup Items",
+                    "disk": "Disk Health", "network": "Network",
+                    "updates": "Windows Update", "hardening": "System Hardening",
+                    "router": "Router Security",
+                }
+                for key, items in data.items():
+                    if not items:
+                        continue
+                    name = section_names.get(key, key.title())
+                    f.write(f"\n{'─' * 70}\n")
+                    f.write(f"  {name} ({len(items)} finding(s))\n")
+                    f.write(f"{'─' * 70}\n\n")
+                    for item in items:
+                        if isinstance(item, dict):
+                            # CVE format
+                            if "cve_id" in item:
+                                f.write(f"  [{item.get('severity', '')}] {item['cve_id']}\n")
+                                f.write(f"    {item.get('description', '')}\n")
+                                f.write(f"    Fix: {item.get('fix', item.get('fix_description', ''))}\n")
+                                ref = item.get('reference_url', '')
+                                if ref:
+                                    f.write(f"    Ref: {ref}\n")
+                            # Standard check format
+                            elif "check" in item:
+                                status = item.get("status", "")
+                                f.write(f"  [{status}] {item['check']}\n")
+                                f.write(f"    {item.get('details', '')}\n")
+                                fix = item.get("fix_suggestion", item.get("fix", ""))
+                                if fix:
+                                    f.write(f"    Fix: {fix}\n")
+                            # Performance format
+                            elif "issue" in item:
+                                f.write(f"  [{item.get('impact', '')}] {item['issue']}\n")
+                                f.write(f"    {item.get('description', '')}\n")
+                            # Startup format
+                            elif "name" in item:
+                                f.write(f"  {item['name']}\n")
+                                f.write(f"    Source: {item.get('source', '')} | Impact: {item.get('impact', '')}\n")
+                            else:
+                                f.write(f"  {item}\n")
+                        else:
+                            f.write(f"  {item}\n")
+                        f.write("\n")
+
+            messagebox.showinfo("Report Exported", f"Text report saved to:\n{filepath}")
+            os.startfile(filepath)
+        except Exception as e:
+            messagebox.showerror("Export Error", f"Failed to export text report:\n{e}")
+
+    # ===== CSV Report Export =====
+    def _export_csv_report(self, results=None):
+        """Export scan results as a CSV file."""
+        data = results or self.scan_results
+        if not any(data.values()):
+            messagebox.showinfo("No Data", "Run some scans first before exporting.")
+            return
+        try:
+            import datetime as _dt
+            import csv
+            desktop = os.path.join(os.path.expanduser("~"), "Desktop")
+            if not os.path.isdir(desktop):
+                desktop = os.path.join(os.path.expanduser("~"), "Documents")
+            filepath = os.path.join(desktop, f"WinnyTool_Report_{_dt.date.today()}.csv")
+
+            section_names = {
+                "cve": "CVE Scanner", "bsod": "BSOD Analyzer",
+                "performance": "Performance", "startup": "Startup Items",
+                "disk": "Disk Health", "network": "Network",
+                "updates": "Windows Update", "hardening": "System Hardening",
+                "router": "Router Security",
+            }
+
+            with open(filepath, "w", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
+                writer.writerow(["Category", "Severity/Status", "Item", "Details", "Fix/Recommendation", "Reference"])
+
+                for key, items in data.items():
+                    if not items:
+                        continue
+                    cat = section_names.get(key, key.title())
+                    for item in items:
+                        if not isinstance(item, dict):
+                            writer.writerow([cat, "", str(item), "", "", ""])
+                            continue
+                        if "cve_id" in item:
+                            writer.writerow([
+                                cat, item.get("severity", ""),
+                                item["cve_id"], item.get("description", ""),
+                                item.get("fix", item.get("fix_description", "")),
+                                item.get("reference_url", ""),
+                            ])
+                        elif "check" in item:
+                            writer.writerow([
+                                cat, item.get("status", ""),
+                                item["check"], item.get("details", ""),
+                                item.get("fix_suggestion", item.get("fix", "")),
+                                "",
+                            ])
+                        elif "issue" in item:
+                            writer.writerow([
+                                cat, item.get("impact", ""),
+                                item["issue"], item.get("description", ""),
+                                item.get("recommended_value", ""),
+                                "",
+                            ])
+                        elif "name" in item:
+                            writer.writerow([
+                                cat, item.get("impact", ""),
+                                item["name"], f"Source: {item.get('source', '')}",
+                                item.get("command", ""),
+                                "",
+                            ])
+                        else:
+                            writer.writerow([cat, "", str(item), "", "", ""])
+
+            messagebox.showinfo("Report Exported", f"CSV report saved to:\n{filepath}")
+            os.startfile(filepath)
+        except Exception as e:
+            messagebox.showerror("Export Error", f"Failed to export CSV report:\n{e}")
 
     # ===== Export Report =====
     def _export_report(self):
