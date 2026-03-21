@@ -18,18 +18,24 @@ SEVERITY_COLORS = {
     "medium": "#ffc107",
     "low": "#28a745",
     "info": "#17a2b8",
+    "pass": "#28a745",
+    "fail": "#dc3545",
+    "warning": "#ffc107",
+    "unknown": "#6c757d",
 }
 
-# All expected scan result sections
+# Map from scan_results keys to display names
 SECTION_LABELS = {
     "system_info": "System Information",
-    "cve_results": "CVE / Vulnerability Scan",
-    "bsod_results": "BSOD Analysis",
-    "performance_results": "Performance Analysis",
-    "startup_items": "Startup Items",
-    "disk_results": "Disk Health",
-    "network_results": "Network Diagnostics",
-    "update_results": "Windows Update Status",
+    "cve": "CVE / Vulnerability Scan",
+    "bsod": "BSOD Analysis",
+    "performance": "Performance Analysis",
+    "startup": "Startup Items",
+    "disk": "Disk Health",
+    "network": "Network Diagnostics",
+    "updates": "Windows Update Status",
+    "hardening": "System Hardening",
+    "router": "Router & Network Security",
 }
 
 
@@ -46,7 +52,7 @@ def _get_output_dir() -> str:
 
 def _severity_badge_html(severity: str) -> str:
     """Return an inline-styled HTML span for a severity level."""
-    sev = severity.lower() if severity else "info"
+    sev = severity.lower().strip() if severity else "info"
     color = SEVERITY_COLORS.get(sev, "#6c757d")
     return (
         f'<span style="background-color:{color};color:#fff;padding:2px 8px;'
@@ -70,7 +76,7 @@ def _build_html_header(timestamp: str) -> str:
         background: #f5f5f5; color: #333; line-height: 1.6;
         padding: 20px;
     }}
-    .container {{ max-width: 960px; margin: 0 auto; }}
+    .container {{ max-width: 1100px; margin: 0 auto; }}
     .header {{
         background: linear-gradient(135deg, #1a1a2e, #16213e);
         color: #fff; padding: 30px; border-radius: 10px;
@@ -86,6 +92,9 @@ def _build_html_header(timestamp: str) -> str:
         font-size: 1.3em; color: #1a1a2e; border-bottom: 2px solid #eee;
         padding-bottom: 8px; margin-bottom: 14px;
     }}
+    .section h2 .count {{
+        font-size: 0.75em; color: #666; font-weight: normal;
+    }}
     table {{
         width: 100%; border-collapse: collapse; font-size: 0.9em;
     }}
@@ -93,7 +102,7 @@ def _build_html_header(timestamp: str) -> str:
         background: #1a1a2e; color: #fff; padding: 10px 12px;
         text-align: left;
     }}
-    td {{ padding: 8px 12px; border-bottom: 1px solid #eee; }}
+    td {{ padding: 8px 12px; border-bottom: 1px solid #eee; vertical-align: top; }}
     tr:nth-child(even) {{ background: #f9f9f9; }}
     .footer {{
         text-align: center; color: #999; font-size: 0.85em;
@@ -101,6 +110,13 @@ def _build_html_header(timestamp: str) -> str:
     }}
     .kv-table td:first-child {{
         font-weight: bold; width: 200px; color: #555;
+    }}
+    .fix-text {{ color: #0d6efd; font-size: 0.85em; }}
+    .ref-link {{ color: #0d6efd; text-decoration: none; }}
+    .ref-link:hover {{ text-decoration: underline; }}
+    .summary-box {{
+        background: #e8f4fd; border-left: 4px solid #0d6efd;
+        padding: 12px 16px; margin-bottom: 16px; border-radius: 4px;
     }}
 </style>
 </head>
@@ -143,37 +159,184 @@ def _render_system_info_html(sys_info) -> str:
     return "\n".join(lines)
 
 
-def _render_findings_html(section_key: str, label: str, findings) -> str:
-    """Render a findings section as an HTML table with severity badges."""
+def _render_cve_section(findings) -> str:
+    """Render CVE findings with severity badges, descriptions, and fix info."""
     if not findings:
         return ""
-
-    lines = ['<div class="section">', f"<h2>{html.escape(label)}</h2>"]
+    lines = ['<div class="section">',
+             f'<h2>CVE / Vulnerability Scan <span class="count">({len(findings)} finding(s))</span></h2>']
     lines.append("<table><thead><tr>")
+    lines.append("<th>Severity</th><th>CVE ID</th><th>Description</th><th>Software</th><th>Fix</th><th>Reference</th>")
+    lines.append("</tr></thead><tbody>")
 
-    if isinstance(findings, list) and findings:
-        if isinstance(findings[0], dict):
-            headers = list(findings[0].keys())
-            for h in headers:
-                lines.append(f"<th>{html.escape(h.replace('_', ' ').title())}</th>")
-            lines.append("</tr></thead><tbody>")
+    for item in findings:
+        sev = item.get("severity", "Medium")
+        cve_id = item.get("cve_id", "")
+        desc = item.get("description", "")
+        software = item.get("affected_software", "")
+        if isinstance(software, list):
+            software = ", ".join(software)
+        fix = item.get("fix", item.get("fix_description", ""))
+        ref = item.get("reference_url", "")
+        ref_html = f'<a class="ref-link" href="{html.escape(ref)}" target="_blank">View Advisory</a>' if ref else ""
 
-            for row in findings:
-                lines.append("<tr>")
-                for h in headers:
-                    val = str(row.get(h, ""))
-                    if h.lower() == "severity":
-                        lines.append(f"<td>{_severity_badge_html(val)}</td>")
-                    else:
-                        lines.append(f"<td>{html.escape(val)}</td>")
-                lines.append("</tr>")
+        lines.append(f"<tr>")
+        lines.append(f"<td>{_severity_badge_html(sev)}</td>")
+        lines.append(f"<td><strong>{html.escape(str(cve_id))}</strong></td>")
+        lines.append(f"<td>{html.escape(str(desc))}</td>")
+        lines.append(f"<td>{html.escape(str(software))}</td>")
+        lines.append(f'<td class="fix-text">{html.escape(str(fix))}</td>')
+        lines.append(f"<td>{ref_html}</td>")
+        lines.append("</tr>")
+
+    lines.append("</tbody></table></div>")
+    return "\n".join(lines)
+
+
+def _render_bsod_section(findings) -> str:
+    """Render BSOD analysis with stop codes and fix suggestions."""
+    if not findings:
+        return ""
+    lines = ['<div class="section">',
+             f'<h2>BSOD Analysis <span class="count">({len(findings)} event(s))</span></h2>']
+    lines.append("<table><thead><tr>")
+    lines.append("<th>Date</th><th>Stop Code</th><th>Name</th><th>Common Causes</th><th>Fix Suggestions</th>")
+    lines.append("</tr></thead><tbody>")
+
+    for item in findings:
+        date = item.get("date", "")
+        code = item.get("stop_code", "")
+        name = item.get("stop_code_name", "Unknown")
+        causes = item.get("common_causes", [])
+        if isinstance(causes, list):
+            causes = "<br>".join(html.escape(str(c)) for c in causes[:3])
         else:
-            lines.append("<th>Item</th></tr></thead><tbody>")
-            for item in findings:
-                lines.append(f"<tr><td>{html.escape(str(item))}</td></tr>")
-    else:
-        lines.append("<th>Details</th></tr></thead><tbody>")
-        lines.append(f"<tr><td>{html.escape(str(findings))}</td></tr>")
+            causes = html.escape(str(causes))
+        fixes = item.get("fix_suggestions", [])
+        if isinstance(fixes, list):
+            fixes = "<br>".join(html.escape(str(f)) for f in fixes[:3])
+        else:
+            fixes = html.escape(str(fixes))
+
+        lines.append(f"<tr><td>{html.escape(str(date))}</td>")
+        lines.append(f"<td><strong>{html.escape(str(code))}</strong></td>")
+        lines.append(f"<td>{html.escape(str(name))}</td>")
+        lines.append(f"<td>{causes}</td>")
+        lines.append(f"<td>{fixes}</td></tr>")
+
+    lines.append("</tbody></table></div>")
+    return "\n".join(lines)
+
+
+def _render_performance_section(findings) -> str:
+    """Render performance findings with impact levels."""
+    if not findings:
+        return ""
+    lines = ['<div class="section">',
+             f'<h2>Performance Analysis <span class="count">({len(findings)} finding(s))</span></h2>']
+    lines.append("<table><thead><tr>")
+    lines.append("<th>Impact</th><th>Issue</th><th>Description</th><th>Current</th><th>Recommended</th>")
+    lines.append("</tr></thead><tbody>")
+
+    for item in findings:
+        impact = item.get("impact", "Medium")
+        issue = item.get("issue", "")
+        desc = item.get("description", "")
+        current = item.get("current_value", "")
+        recommended = item.get("recommended_value", "")
+
+        lines.append(f"<tr><td>{_severity_badge_html(impact)}</td>")
+        lines.append(f"<td><strong>{html.escape(str(issue))}</strong></td>")
+        lines.append(f"<td>{html.escape(str(desc))}</td>")
+        lines.append(f"<td>{html.escape(str(current))}</td>")
+        lines.append(f"<td>{html.escape(str(recommended))}</td></tr>")
+
+    lines.append("</tbody></table></div>")
+    return "\n".join(lines)
+
+
+def _render_startup_section(findings) -> str:
+    """Render startup items with source and impact."""
+    if not findings:
+        return ""
+    lines = ['<div class="section">',
+             f'<h2>Startup Items <span class="count">({len(findings)} item(s))</span></h2>']
+    lines.append("<table><thead><tr>")
+    lines.append("<th>Impact</th><th>Name</th><th>Command</th><th>Source</th><th>Location</th>")
+    lines.append("</tr></thead><tbody>")
+
+    for item in findings:
+        impact = item.get("impact", "Unknown")
+        name = item.get("name", "")
+        cmd = item.get("command", "")
+        source = item.get("source", "")
+        location = item.get("location", "")
+
+        lines.append(f"<tr><td>{_severity_badge_html(impact)}</td>")
+        lines.append(f"<td><strong>{html.escape(str(name))}</strong></td>")
+        lines.append(f"<td style='font-size:0.8em;word-break:break-all;'>{html.escape(str(cmd))}</td>")
+        lines.append(f"<td>{html.escape(str(source))}</td>")
+        lines.append(f"<td style='font-size:0.8em;'>{html.escape(str(location))}</td></tr>")
+
+    lines.append("</tbody></table></div>")
+    return "\n".join(lines)
+
+
+def _render_check_section(section_key, label, findings) -> str:
+    """Render generic check-based sections (disk, network, updates, router)."""
+    if not findings:
+        return ""
+    lines = ['<div class="section">',
+             f'<h2>{html.escape(label)} <span class="count">({len(findings)} finding(s))</span></h2>']
+    lines.append("<table><thead><tr>")
+    lines.append("<th>Status</th><th>Check</th><th>Details</th><th>Fix</th>")
+    lines.append("</tr></thead><tbody>")
+
+    for item in findings:
+        if not isinstance(item, dict):
+            lines.append(f"<tr><td colspan='4'>{html.escape(str(item))}</td></tr>")
+            continue
+        status = item.get("status", item.get("severity", "Info"))
+        check = item.get("check", item.get("setting", ""))
+        details = item.get("details", item.get("description", ""))
+        fix = item.get("fix_suggestion", item.get("fix", item.get("fix_description", "")))
+
+        lines.append(f"<tr><td>{_severity_badge_html(status)}</td>")
+        lines.append(f"<td><strong>{html.escape(str(check))}</strong></td>")
+        lines.append(f"<td>{html.escape(str(details))}</td>")
+        lines.append(f'<td class="fix-text">{html.escape(str(fix))}</td></tr>')
+
+    lines.append("</tbody></table></div>")
+    return "\n".join(lines)
+
+
+def _render_hardening_section(findings) -> str:
+    """Render hardening findings with tier, status, pros, and cons."""
+    if not findings:
+        return ""
+    lines = ['<div class="section">',
+             f'<h2>System Hardening <span class="count">({len(findings)} check(s))</span></h2>']
+    lines.append("<table><thead><tr>")
+    lines.append("<th>Status</th><th>Tier</th><th>Setting</th><th>Description</th><th>Pros</th><th>Cons</th>")
+    lines.append("</tr></thead><tbody>")
+
+    for item in findings:
+        if not isinstance(item, dict):
+            continue
+        status = item.get("status", "Unknown")
+        tier = item.get("tier", "")
+        setting = item.get("setting", "")
+        desc = item.get("description", "")
+        pros = item.get("pros", "")
+        cons = item.get("cons", "")
+
+        status_color = "Pass" if status == "Enabled" else "Fail" if status == "Disabled" else "Unknown"
+        lines.append(f"<tr><td>{_severity_badge_html(status_color)}</td>")
+        lines.append(f"<td>{html.escape(str(tier))}</td>")
+        lines.append(f"<td><strong>{html.escape(str(setting))}</strong></td>")
+        lines.append(f"<td>{html.escape(str(desc))}</td>")
+        lines.append(f"<td style='color:#28a745;'>{html.escape(str(pros))}</td>")
+        lines.append(f"<td style='color:#dc3545;'>{html.escape(str(cons))}</td></tr>")
 
     lines.append("</tbody></table></div>")
     return "\n".join(lines)
@@ -184,21 +347,44 @@ def _generate_html_report(scan_results: dict) -> str:
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     parts = [_build_html_header(timestamp)]
 
+    # Summary box
+    total = sum(len(v) for k, v in scan_results.items() if k != "system_info" and isinstance(v, list))
+    parts.append(f'<div class="summary-box"><strong>Total Findings: {total}</strong> across {len(scan_results)} scan categories</div>')
+
     # System info section (special layout)
     if "system_info" in scan_results:
         parts.append(_render_system_info_html(scan_results["system_info"]))
 
-    # All other sections
-    for key, label in SECTION_LABELS.items():
-        if key == "system_info":
-            continue
+    # CVE section
+    if "cve" in scan_results and scan_results["cve"]:
+        parts.append(_render_cve_section(scan_results["cve"]))
+
+    # BSOD section
+    if "bsod" in scan_results and scan_results["bsod"]:
+        parts.append(_render_bsod_section(scan_results["bsod"]))
+
+    # Performance section
+    if "performance" in scan_results and scan_results["performance"]:
+        parts.append(_render_performance_section(scan_results["performance"]))
+
+    # Startup section
+    if "startup" in scan_results and scan_results["startup"]:
+        parts.append(_render_startup_section(scan_results["startup"]))
+
+    # Hardening section
+    if "hardening" in scan_results and scan_results["hardening"]:
+        parts.append(_render_hardening_section(scan_results["hardening"]))
+
+    # Generic check-based sections (disk, network, updates, router)
+    for key in ("disk", "network", "updates", "router"):
+        label = SECTION_LABELS.get(key, key.title())
         if key in scan_results and scan_results[key]:
-            parts.append(_render_findings_html(key, label, scan_results[key]))
+            parts.append(_render_check_section(key, label, scan_results[key]))
 
     # Footer
     parts.append(
         '<div class="footer">'
-        f"Generated by WinnyTool v1.0 | {html.escape(timestamp)}"
+        f"Generated by WinnyTool v1.4 | {html.escape(timestamp)}"
         "</div></div></body></html>"
     )
 
@@ -238,7 +424,7 @@ def _generate_text_report(scan_results: dict) -> str:
             lines.append(f"  {display_key:<25} {value}")
         lines.append("")
 
-    # Other sections
+    # All sections with actual keys
     for key, label in SECTION_LABELS.items():
         if key == "system_info":
             continue
@@ -246,16 +432,62 @@ def _generate_text_report(scan_results: dict) -> str:
         if not findings:
             continue
 
-        lines.append("-" * 40)
-        lines.append(f"  {label.upper()}")
-        lines.append("-" * 40)
+        lines.append("-" * 70)
+        lines.append(f"  {label.upper()} ({len(findings)} finding(s))")
+        lines.append("-" * 70)
 
         if isinstance(findings, list):
             for item in findings:
                 if isinstance(item, dict):
-                    for k, v in item.items():
-                        display_k = k.replace("_", " ").title()
-                        lines.append(f"  {display_k}: {v}")
+                    # CVE format
+                    if "cve_id" in item:
+                        lines.append(f"  [{item.get('severity', '')}] {item['cve_id']}")
+                        lines.append(f"    {item.get('description', '')}")
+                        fix = item.get("fix", item.get("fix_description", ""))
+                        if fix:
+                            lines.append(f"    Fix: {fix}")
+                        ref = item.get("reference_url", "")
+                        if ref:
+                            lines.append(f"    Ref: {ref}")
+                    # Performance format
+                    elif "issue" in item:
+                        lines.append(f"  [{item.get('impact', '')}] {item['issue']}")
+                        lines.append(f"    {item.get('description', '')}")
+                        cur = item.get("current_value", "")
+                        rec = item.get("recommended_value", "")
+                        if cur:
+                            lines.append(f"    Current: {cur}")
+                        if rec:
+                            lines.append(f"    Recommended: {rec}")
+                    # BSOD format
+                    elif "stop_code" in item:
+                        lines.append(f"  {item.get('date', '')} - {item.get('stop_code', '')} ({item.get('stop_code_name', '')})")
+                        causes = item.get("common_causes", [])
+                        if causes:
+                            lines.append(f"    Causes: {', '.join(str(c) for c in causes[:3])}")
+                        fixes = item.get("fix_suggestions", [])
+                        if fixes:
+                            lines.append(f"    Fixes: {', '.join(str(f) for f in fixes[:3])}")
+                    # Startup format
+                    elif "name" in item and "source" in item:
+                        lines.append(f"  [{item.get('impact', '')}] {item['name']}")
+                        lines.append(f"    Source: {item.get('source', '')} | Command: {item.get('command', '')}")
+                    # Hardening format
+                    elif "setting" in item:
+                        lines.append(f"  [{item.get('status', '')}] {item['setting']} (Tier: {item.get('tier', '')})")
+                        lines.append(f"    {item.get('description', '')}")
+                    # Standard check format
+                    elif "check" in item:
+                        lines.append(f"  [{item.get('status', '')}] {item['check']}")
+                        lines.append(f"    {item.get('details', '')}")
+                        fix = item.get("fix_suggestion", item.get("fix", ""))
+                        if fix:
+                            lines.append(f"    Fix: {fix}")
+                    else:
+                        for k, v in item.items():
+                            if k == "fix_action":
+                                continue
+                            lines.append(f"    {k}: {v}")
                     lines.append("")
                 else:
                     lines.append(f"  - {item}")
@@ -264,7 +496,7 @@ def _generate_text_report(scan_results: dict) -> str:
         lines.append("")
 
     lines.append("=" * 70)
-    lines.append(f"  End of Report | WinnyTool v1.0 | {timestamp}")
+    lines.append(f"  End of Report | WinnyTool v1.4 | {timestamp}")
     lines.append("=" * 70)
 
     # Save file
@@ -283,15 +515,17 @@ def generate_report(scan_results: dict, format: str = "html") -> str:
     Generate a diagnostic report from scan results.
 
     Args:
-        scan_results: Dictionary with keys matching SECTION_LABELS:
+        scan_results: Dictionary with keys matching scan module outputs:
             - system_info: dict of system info key/value pairs
-            - cve_results: list of dicts with vulnerability findings
-            - bsod_results: list of dicts with BSOD analysis
-            - performance_results: list of dicts with performance metrics
-            - startup_items: list of dicts with startup entries
-            - disk_results: list of dicts with disk health data
-            - network_results: list of dicts with network diagnostics
-            - update_results: list of dicts with Windows update status
+            - cve: list of CVE findings
+            - bsod: list of BSOD events
+            - performance: list of performance issues
+            - startup: list of startup items
+            - disk: list of disk health checks
+            - network: list of network diagnostics
+            - updates: list of Windows Update checks
+            - hardening: list of hardening checks
+            - router: list of router security checks
         format: "html" or "text"
 
     Returns:
@@ -302,23 +536,3 @@ def generate_report(scan_results: dict, format: str = "html") -> str:
         return _generate_text_report(scan_results)
     else:
         return _generate_html_report(scan_results)
-
-
-if __name__ == "__main__":
-    # Example usage with dummy data
-    sample = {
-        "system_info": {
-            "os_name": "Windows 11",
-            "cpu_name": "Intel i7-12700K",
-            "ram_total": "32 GB",
-        },
-        "cve_results": [
-            {"cve_id": "CVE-2024-1234", "severity": "High", "description": "Sample vulnerability"},
-        ],
-        "bsod_results": [],
-        "performance_results": [
-            {"metric": "CPU Usage", "value": "45%", "severity": "Low"},
-        ],
-    }
-    path = generate_report(sample, "html")
-    print(f"Report saved to: {path}")
