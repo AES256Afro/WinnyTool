@@ -23,7 +23,7 @@ from core.router_security import scan_router_security
 from core.grading import calculate_grade, get_grade_color
 from core.resources import get_security_resources, open_resource
 
-VERSION = "1.3.0"
+VERSION = "1.4.0"
 APP_NAME = "WinnyTool"
 
 # --- Color Scheme ---
@@ -346,6 +346,7 @@ class WinnyToolApp:
             ("security_grade", "Security Grade"),
             ("updates", "Windows Update"),
             ("history", "Scan History"),
+            ("check_updates", "Check for Updates"),
         ]
 
         for key, label in nav_items:
@@ -434,6 +435,7 @@ class WinnyToolApp:
             "security_grade": self._show_security_grade,
             "resources": self._show_resources,
             "settings": self._show_settings,
+            "check_updates": self._show_check_updates,
         }
         pages.get(page, self._show_dashboard)()
 
@@ -542,6 +544,29 @@ class WinnyToolApp:
                 style="Card.TLabel",
                 foreground=COLORS["text_secondary"],
             ).pack(anchor="w", pady=(3, 0))
+
+        # Manual fix instructions (CVE results)
+        fix_description = result.get("fix_description") or result.get("fix")
+        category = result.get("category", "")
+        if fix_description and category == "cve":
+            ttk.Label(
+                inner,
+                text=f"How to fix manually: {fix_description}",
+                style="Card.TLabel",
+                foreground="#4fc3f7",
+                wraplength=700,
+            ).pack(anchor="w", pady=(5, 0))
+        elif fix_description or result.get("fix_suggestion"):
+            # Non-CVE results with a fix or fix_suggestion
+            fix_text = fix_description or result.get("fix_suggestion", "")
+            if fix_text:
+                ttk.Label(
+                    inner,
+                    text=f"Suggested fix: {fix_text}",
+                    style="Card.TLabel",
+                    foreground="#4fc3f7",
+                    wraplength=700,
+                ).pack(anchor="w", pady=(5, 0))
 
         # Fix button(s)
         fix_action = result.get("fix_action")
@@ -2198,13 +2223,26 @@ class WinnyToolApp:
             "Run all scans and calculate your overall security grade",
         )
 
+        btn_row = ttk.Frame(header, style="Dark.TFrame")
+        btn_row.pack(anchor="w", pady=(10, 0))
+
         scan_btn = ttk.Button(
-            header,
+            btn_row,
             text="Calculate Security Grade",
             style="Accent.TButton",
             command=lambda: self._run_security_grade(scroll),
         )
-        scan_btn.pack(anchor="w", pady=(10, 0))
+        scan_btn.pack(side=tk.LEFT)
+
+        export_btn = ttk.Button(
+            btn_row,
+            text="Export Report",
+            style="TButton",
+            command=lambda: self._export_grade_report(
+                getattr(self, "_last_grade_result", None)
+            ),
+        )
+        export_btn.pack(side=tk.LEFT, padx=(10, 0))
 
         # Results container
         self._grade_results_frame = ttk.Frame(scroll, style="Dark.TFrame")
@@ -2273,6 +2311,7 @@ class WinnyToolApp:
 
     def _display_security_grade(self, grade_result):
         """Display the security grade results."""
+        self._last_grade_result = grade_result
         for w in self._grade_results_frame.winfo_children():
             w.destroy()
 
@@ -2421,6 +2460,212 @@ class WinnyToolApp:
                 style="Card.TLabel",
                 wraplength=700,
             ).pack(anchor="w")
+
+        # Export Report button at bottom of results
+        export_btn = ttk.Button(
+            self._grade_results_frame,
+            text="Export Report",
+            style="Accent.TButton",
+            command=lambda: self._export_grade_report(grade_result),
+        )
+        export_btn.pack(anchor="w", padx=20, pady=(15, 10))
+
+    def _export_grade_report(self, grade_result):
+        """Export the security grade report as a styled HTML file to the Desktop."""
+        if not grade_result:
+            messagebox.showwarning(
+                "No Results",
+                "No security grade results to export. Run the scan first.",
+            )
+            return
+
+        today = datetime.date.today().isoformat()
+        desktop = os.path.join(os.path.expanduser("~"), "Desktop")
+        filename = f"WinnyTool_SecurityGrade_{today}.html"
+        filepath = os.path.join(desktop, filename)
+
+        overall_grade = grade_result.get("overall_grade", "?")
+        overall_score = grade_result.get("overall_score", 0)
+        overall_color = grade_result.get("overall_color", "#ffffff")
+        categories = grade_result.get("categories", {})
+        recs = grade_result.get("top_recommendations", [])
+        summary = grade_result.get("summary", "")
+
+        # Build category rows
+        cat_rows = ""
+        for cat_name, cat_data in categories.items():
+            cat_grade = cat_data.get("grade", "?")
+            cat_score = cat_data.get("score", 0)
+            cat_color = cat_data.get("color", "#ffffff")
+            findings = cat_data.get("findings", 0)
+            bar_width = max(0, min(100, cat_score))
+            cat_rows += f"""
+            <tr>
+                <td>{cat_name}</td>
+                <td style="color:{cat_color};font-weight:bold;font-size:1.2em;">{cat_grade}</td>
+                <td>{cat_score}/100</td>
+                <td>
+                    <div class="bar-bg"><div class="bar-fill" style="width:{bar_width}%;background:{cat_color};"></div></div>
+                </td>
+                <td>{findings} finding(s)</td>
+            </tr>"""
+
+        # Build recommendation items
+        rec_items = ""
+        for i, rec in enumerate(recs, 1):
+            if isinstance(rec, dict):
+                rec_text = rec.get("text", str(rec))
+                fix_action = rec.get("fix_action")
+                fix_link = rec.get("link", "")
+            else:
+                rec_text = str(rec)
+                fix_action = None
+                fix_link = ""
+
+            item_html = f"<li>{rec_text}"
+            if fix_link:
+                item_html += f' <a href="{fix_link}" target="_blank">[More Info]</a>'
+            if fix_action:
+                cmd = fix_action if isinstance(fix_action, str) else fix_action.get("command", "")
+                if cmd:
+                    item_html += f'<pre class="code-block">{cmd}</pre>'
+            item_html += "</li>"
+            rec_items += item_html
+
+        html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WinnyTool Security Grade Report - {today}</title>
+<style>
+    * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+    body {{
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: {COLORS['bg_dark']};
+        color: {COLORS['text_primary']};
+        padding: 40px;
+        line-height: 1.6;
+    }}
+    .container {{ max-width: 900px; margin: 0 auto; }}
+    h1 {{ color: {COLORS['accent']}; margin-bottom: 5px; font-size: 1.8em; }}
+    h2 {{ color: {COLORS['text_primary']}; margin: 30px 0 15px 0; font-size: 1.3em; }}
+    .subtitle {{ color: {COLORS['text_secondary']}; margin-bottom: 25px; }}
+    .grade-card {{
+        background: {COLORS['card_bg']};
+        border-radius: 10px;
+        padding: 30px;
+        text-align: center;
+        margin-bottom: 30px;
+    }}
+    .grade-letter {{
+        font-size: 96px;
+        font-weight: bold;
+        color: {overall_color};
+        line-height: 1;
+    }}
+    .grade-score {{
+        font-size: 1.3em;
+        color: {COLORS['text_secondary']};
+        margin-top: 8px;
+    }}
+    table {{
+        width: 100%;
+        border-collapse: collapse;
+        background: {COLORS['card_bg']};
+        border-radius: 8px;
+        overflow: hidden;
+    }}
+    th, td {{ padding: 12px 16px; text-align: left; }}
+    th {{ background: {COLORS['bg_light']}; color: {COLORS['text_secondary']}; font-weight: 600; }}
+    tr:not(:last-child) td {{ border-bottom: 1px solid {COLORS['bg_light']}; }}
+    .bar-bg {{
+        background: {COLORS['bg_dark']};
+        border-radius: 6px;
+        height: 12px;
+        width: 100%;
+        min-width: 120px;
+    }}
+    .bar-fill {{ height: 12px; border-radius: 6px; transition: width 0.3s; }}
+    .rec-list {{ list-style: none; padding: 0; }}
+    .rec-list li {{
+        background: {COLORS['card_bg']};
+        border-radius: 8px;
+        padding: 14px 18px;
+        margin-bottom: 8px;
+    }}
+    .rec-list a {{ color: {COLORS['info']}; text-decoration: none; }}
+    .rec-list a:hover {{ text-decoration: underline; }}
+    .code-block {{
+        background: {COLORS['bg_dark']};
+        border: 1px solid {COLORS['bg_light']};
+        border-radius: 6px;
+        padding: 10px 14px;
+        margin-top: 8px;
+        font-family: 'Cascadia Code', 'Consolas', monospace;
+        font-size: 0.9em;
+        color: {COLORS['success']};
+        white-space: pre-wrap;
+        word-break: break-all;
+        cursor: text;
+        user-select: all;
+    }}
+    .summary-card {{
+        background: {COLORS['card_bg']};
+        border-radius: 8px;
+        padding: 20px;
+        color: {COLORS['text_secondary']};
+    }}
+    .footer {{
+        margin-top: 40px;
+        text-align: center;
+        color: {COLORS['text_secondary']};
+        font-size: 0.85em;
+    }}
+</style>
+</head>
+<body>
+<div class="container">
+    <h1>WinnyTool Security Grade Report</h1>
+    <p class="subtitle">Generated on {today}</p>
+
+    <div class="grade-card">
+        <div class="grade-letter">{overall_grade}</div>
+        <div class="grade-score">Overall Score: {overall_score} / 100</div>
+    </div>
+
+    <h2>Category Breakdown</h2>
+    <table>
+        <thead>
+            <tr><th>Category</th><th>Grade</th><th>Score</th><th>Progress</th><th>Findings</th></tr>
+        </thead>
+        <tbody>{cat_rows}
+        </tbody>
+    </table>
+
+    {"<h2>Top Recommendations</h2><ol class='rec-list'>" + rec_items + "</ol>" if rec_items else ""}
+
+    {"<h2>Summary</h2><div class='summary-card'>" + summary + "</div>" if summary else ""}
+
+    <div class="footer">
+        WinnyTool v{VERSION} &mdash; Windows System Diagnostic &amp; Optimization Tool
+    </div>
+</div>
+</body>
+</html>"""
+
+        try:
+            with open(filepath, "w", encoding="utf-8") as f:
+                f.write(html)
+            messagebox.showinfo(
+                "Report Exported",
+                f"Security grade report saved to:\n{filepath}",
+            )
+        except Exception as e:
+            messagebox.showerror(
+                "Export Failed",
+                f"Failed to save report:\n{str(e)}",
+            )
 
     # ===== PAGE: Resources =====
     def _show_resources(self):
@@ -2695,18 +2940,323 @@ class WinnyToolApp:
             pass  # Silent fail on update check
 
     def _show_update_prompt(self, update_info):
-        """Show update available notification."""
-        response = messagebox.askyesno(
-            "Update Available",
-            f"A new version of {APP_NAME} is available!\n\n"
-            f"Current: v{update_info['current_version']}\n"
-            f"Latest: v{update_info['latest_version']}\n\n"
-            f"{update_info.get('release_notes', '')[:300]}\n\n"
-            f"Would you like to download the update?",
+        """Show update available dialog with download-and-install capability."""
+        import webbrowser
+        import tempfile
+        import zipfile
+        import shutil
+
+        download_url = update_info.get("download_url", "")
+        if not download_url:
+            messagebox.showinfo(
+                "Update Available",
+                f"A new version v{update_info['latest_version']} is available, "
+                f"but no downloadable asset was found.\n\n"
+                f"Please visit the GitHub releases page manually.",
+            )
+            return
+
+        # Build the prompt dialog
+        dlg = tk.Toplevel(self.root)
+        dlg.title("Update Available")
+        dlg.configure(bg=COLORS["bg_dark"])
+        dlg.geometry("480x320")
+        dlg.resizable(False, False)
+        dlg.transient(self.root)
+        dlg.grab_set()
+
+        frame = ttk.Frame(dlg, style="Dark.TFrame")
+        frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+
+        ttk.Label(
+            frame,
+            text=f"A new version of {APP_NAME} is available!",
+            style="CardTitle.TLabel",
+        ).pack(anchor="w")
+
+        ttk.Label(
+            frame,
+            text=f"Current: v{update_info['current_version']}    Latest: v{update_info['latest_version']}",
+            style="Card.TLabel",
+        ).pack(anchor="w", pady=(8, 4))
+
+        notes = update_info.get("release_notes", "")[:300]
+        if notes:
+            ttk.Label(
+                frame,
+                text=notes,
+                style="Card.TLabel",
+                wraplength=430,
+                foreground=COLORS["text_secondary"],
+            ).pack(anchor="w", pady=(4, 10))
+
+        progress_var = tk.DoubleVar(value=0)
+        progress_bar = ttk.Progressbar(frame, variable=progress_var, maximum=100)
+        progress_bar.pack(fill=tk.X, pady=(5, 2))
+        progress_bar.pack_forget()  # hidden initially
+
+        status_var = tk.StringVar(value="")
+        status_lbl = ttk.Label(frame, textvariable=status_var, style="Card.TLabel")
+        status_lbl.pack(anchor="w")
+
+        btn_frame = ttk.Frame(frame, style="Dark.TFrame")
+        btn_frame.pack(fill=tk.X, pady=(10, 0))
+
+        def _do_download_install():
+            """Download and install the update in a background thread."""
+            progress_bar.pack(fill=tk.X, pady=(5, 2))
+            install_btn.configure(state="disabled")
+            browser_btn.configure(state="disabled")
+
+            def worker():
+                try:
+                    import urllib.request as urlreq
+
+                    filename = download_url.rsplit("/", 1)[-1] if "/" in download_url else "winnytool_update"
+                    dest = os.path.join(tempfile.gettempdir(), filename)
+
+                    self.root.after(0, lambda: status_var.set(f"Downloading {filename}..."))
+
+                    req = urlreq.Request(download_url, headers={"User-Agent": "WinnyTool-Updater"})
+                    with urlreq.urlopen(req, timeout=120) as resp:
+                        total = resp.headers.get("Content-Length")
+                        total = int(total) if total else None
+                        downloaded = 0
+                        with open(dest, "wb") as f:
+                            while True:
+                                chunk = resp.read(65536)
+                                if not chunk:
+                                    break
+                                f.write(chunk)
+                                downloaded += len(chunk)
+                                if total:
+                                    pct = (downloaded / total) * 100
+                                    self.root.after(0, lambda p=pct: progress_var.set(p))
+                                    self.root.after(
+                                        0,
+                                        lambda d=downloaded, t=total: status_var.set(
+                                            f"Downloading... {d // 1024} / {t // 1024} KB"
+                                        ),
+                                    )
+
+                    self.root.after(0, lambda: progress_var.set(100))
+                    self.root.after(0, lambda: status_var.set("Download complete. Installing..."))
+
+                    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+
+                    if ext == "zip":
+                        extract_dir = os.path.join(tempfile.gettempdir(), "winnytool_update_extract")
+                        if os.path.isdir(extract_dir):
+                            shutil.rmtree(extract_dir, ignore_errors=True)
+                        with zipfile.ZipFile(dest, "r") as zf:
+                            zf.extractall(extract_dir)
+                        # Copy extracted files over the current installation
+                        app_dir = os.path.dirname(os.path.abspath(__file__))
+                        for root_dir, dirs, files in os.walk(extract_dir):
+                            rel = os.path.relpath(root_dir, extract_dir)
+                            target_dir = os.path.join(app_dir, rel)
+                            os.makedirs(target_dir, exist_ok=True)
+                            for fname in files:
+                                src = os.path.join(root_dir, fname)
+                                dst = os.path.join(target_dir, fname)
+                                try:
+                                    shutil.copy2(src, dst)
+                                except PermissionError:
+                                    pass  # skip locked files
+                        self.root.after(
+                            0,
+                            lambda: status_var.set("Update extracted. Please restart WinnyTool."),
+                        )
+                        self.root.after(
+                            0,
+                            lambda: messagebox.showinfo(
+                                "Update Installed",
+                                "Files have been updated. Please restart WinnyTool for changes to take effect.",
+                            ),
+                        )
+                    elif ext in ("exe", "msi"):
+                        self.root.after(0, lambda: status_var.set("Launching installer..."))
+                        if ext == "msi":
+                            import subprocess
+                            subprocess.Popen(
+                                ["msiexec", "/i", dest],
+                                creationflags=getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0),
+                            )
+                        else:
+                            os.startfile(dest)
+                        self.root.after(
+                            0,
+                            lambda: messagebox.showinfo(
+                                "Installer Launched",
+                                "The installer has been launched. WinnyTool will close.",
+                            ),
+                        )
+                        self.root.after(500, self.root.destroy)
+                    else:
+                        # Unknown type - open containing folder
+                        self.root.after(
+                            0,
+                            lambda: status_var.set(f"Downloaded to {dest}"),
+                        )
+                        os.startfile(os.path.dirname(dest))
+
+                except Exception as e:
+                    self.root.after(
+                        0,
+                        lambda: status_var.set(f"Download failed: {e}"),
+                    )
+                    self.root.after(0, lambda: install_btn.configure(state="normal"))
+                    self.root.after(0, lambda: browser_btn.configure(state="normal"))
+
+            threading.Thread(target=worker, daemon=True).start()
+
+        def _open_browser():
+            webbrowser.open(download_url)
+            dlg.destroy()
+
+        install_btn = ttk.Button(
+            btn_frame,
+            text="Download & Install",
+            style="Accent.TButton",
+            command=_do_download_install,
         )
-        if response and update_info.get("download_url"):
-            import webbrowser
-            webbrowser.open(update_info["download_url"])
+        install_btn.pack(side=tk.LEFT, padx=(0, 5))
+
+        browser_btn = ttk.Button(
+            btn_frame,
+            text="Open in Browser",
+            command=_open_browser,
+        )
+        browser_btn.pack(side=tk.LEFT, padx=5)
+
+        ttk.Button(
+            btn_frame,
+            text="Skip",
+            command=dlg.destroy,
+        ).pack(side=tk.RIGHT)
+
+    # ===== PAGE: Check for Updates =====
+    def _show_check_updates(self):
+        """Show the Check for Updates page with current version info and a Check Now button."""
+        self._clear_content()
+        self._navigate_highlight("check_updates")
+        scroll = self._make_scrollable(self.content_frame)
+
+        self._create_page_header(
+            scroll,
+            "Check for Updates",
+            "Manually check for new WinnyTool releases",
+        )
+
+        # Version info card
+        info_card = ttk.Frame(scroll, style="Card.TFrame")
+        info_card.pack(fill=tk.X, padx=20, pady=10)
+        info_inner = ttk.Frame(info_card, style="Card.TFrame")
+        info_inner.pack(fill=tk.X, padx=15, pady=15)
+
+        ttk.Label(
+            info_inner, text="Current Version", style="CardTitle.TLabel"
+        ).pack(anchor="w")
+        ttk.Label(
+            info_inner,
+            text=f"v{VERSION}",
+            style="Card.TLabel",
+            font=("Segoe UI", 16, "bold"),
+        ).pack(anchor="w", pady=(4, 8))
+        ttk.Label(
+            info_inner,
+            text=f"Repository: {updater.GITHUB_REPO}",
+            style="Card.TLabel",
+            foreground=COLORS["text_secondary"],
+        ).pack(anchor="w")
+
+        # Result card (hidden until check runs)
+        result_card = ttk.Frame(scroll, style="Card.TFrame")
+        result_inner = ttk.Frame(result_card, style="Card.TFrame")
+        result_inner.pack(fill=tk.X, padx=15, pady=15)
+
+        result_var = tk.StringVar(value="")
+        result_lbl = ttk.Label(
+            result_inner,
+            textvariable=result_var,
+            style="Card.TLabel",
+            wraplength=600,
+        )
+        result_lbl.pack(anchor="w")
+
+        update_btn_frame = ttk.Frame(result_inner, style="Card.TFrame")
+
+        # Check Now button
+        action_card = ttk.Frame(scroll, style="Card.TFrame")
+        action_card.pack(fill=tk.X, padx=20, pady=10)
+        action_inner = ttk.Frame(action_card, style="Card.TFrame")
+        action_inner.pack(fill=tk.X, padx=15, pady=15)
+
+        def do_check():
+            check_btn.configure(state="disabled")
+            result_var.set("Checking for updates...")
+            result_card.pack(fill=tk.X, padx=20, pady=10)
+
+            # Clear old update buttons
+            for w in update_btn_frame.winfo_children():
+                w.destroy()
+
+            def worker():
+                try:
+                    info = updater.check_for_updates()
+                except Exception as e:
+                    self.root.after(
+                        0, lambda: result_var.set(f"Error checking for updates: {e}")
+                    )
+                    self.root.after(0, lambda: check_btn.configure(state="normal"))
+                    return
+
+                def show_result():
+                    check_btn.configure(state="normal")
+                    if info.get("update_available"):
+                        result_lbl.configure(foreground=COLORS["success"])
+                        result_var.set(
+                            f"Update available!  Latest: v{info['latest_version']}\n\n"
+                            f"{info.get('release_notes', '')[:400]}"
+                        )
+                        # Show assets info
+                        assets = info.get("assets", [])
+                        if assets:
+                            asset_text = "  |  ".join(
+                                f"{a['name']} ({a['size'] // 1024} KB)" for a in assets
+                            )
+                            ttk.Label(
+                                result_inner,
+                                text=f"Assets: {asset_text}",
+                                style="Card.TLabel",
+                                foreground=COLORS["text_secondary"],
+                                wraplength=600,
+                            ).pack(anchor="w", pady=(6, 0))
+
+                        update_btn_frame.pack(anchor="w", pady=(10, 0))
+                        ttk.Button(
+                            update_btn_frame,
+                            text="Download & Install",
+                            style="Accent.TButton",
+                            command=lambda: self._show_update_prompt(info),
+                        ).pack(side=tk.LEFT, padx=(0, 5))
+                    else:
+                        result_lbl.configure(foreground=COLORS["text_secondary"])
+                        result_var.set(
+                            f"You are up to date!  (v{info['current_version']})"
+                        )
+
+                self.root.after(0, show_result)
+
+            threading.Thread(target=worker, daemon=True).start()
+
+        check_btn = ttk.Button(
+            action_inner,
+            text="Check Now",
+            style="Accent.TButton",
+            command=do_check,
+        )
+        check_btn.pack(anchor="w")
 
 
 def main():
