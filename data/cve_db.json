@@ -1,0 +1,306 @@
+{
+  "version": "1.0.0",
+  "last_updated": "2025-06-01",
+  "cves": [
+    {
+      "cve_id": "CVE-2017-0144",
+      "severity": "Critical",
+      "description": "EternalBlue - SMBv1 remote code execution vulnerability allowing attackers to execute arbitrary code via crafted packets.",
+      "affected_software": "Windows SMB",
+      "affected_versions": ["Windows 7", "Windows Server 2008", "Windows Server 2008 R2", "Windows XP", "Windows Vista", "Windows 8"],
+      "fix_description": "Apply MS17-010 security update. Disable SMBv1 if not needed.",
+      "kb_patch": "KB4012212",
+      "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2017-0144"
+    },
+    {
+      "cve_id": "CVE-2020-1472",
+      "severity": "Critical",
+      "description": "Zerologon - Netlogon elevation of privilege vulnerability allowing attackers to establish a Netlogon secure channel connection to a domain controller using a null session.",
+      "affected_software": "Windows Server",
+      "affected_versions": ["Windows Server 2008 R2", "Windows Server 2012", "Windows Server 2012 R2", "Windows Server 2016", "Windows Server 2019"],
+      "fix_description": "Apply the August 2020 security update. Enforce secure RPC for Netlogon channels.",
+      "kb_patch": "KB4571694",
+      "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2020-1472"
+    },
+    {
+      "cve_id": "CVE-2021-34527",
+      "severity": "Critical",
+      "description": "PrintNightmare - Windows Print Spooler remote code execution vulnerability allowing attackers to install programs, view/change/delete data, or create new accounts with full user rights.",
+      "affected_software": "Windows Print Spooler",
+      "affected_versions": ["Windows 7", "Windows 8.1", "Windows 10", "Windows Server 2008", "Windows Server 2012", "Windows Server 2016", "Windows Server 2019"],
+      "fix_description": "Apply the out-of-band security update. Disable the Print Spooler service if not required.",
+      "kb_patch": "KB5004945",
+      "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2021-34527"
+    },
+    {
+      "cve_id": "CVE-2021-1675",
+      "severity": "Critical",
+      "description": "Windows Print Spooler remote code execution vulnerability (original PrintNightmare). Allows local privilege escalation and remote code execution.",
+      "affected_software": "Windows Print Spooler",
+      "affected_versions": ["Windows 7", "Windows 8.1", "Windows 10", "Windows Server 2008", "Windows Server 2012", "Windows Server 2016", "Windows Server 2019"],
+      "fix_description": "Apply the June 2021 cumulative update.",
+      "kb_patch": "KB5003637",
+      "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2021-1675"
+    },
+    {
+      "cve_id": "CVE-2021-44228",
+      "severity": "Critical",
+      "description": "Log4Shell - Apache Log4j2 JNDI features do not protect against attacker-controlled LDAP and other JNDI related endpoints. Affects Java-based Windows applications using Log4j.",
+      "affected_software": "Log4j",
+      "affected_versions": ["2.0-beta9", "2.0", "2.1", "2.2", "2.3", "2.4", "2.5", "2.6", "2.7", "2.8", "2.9", "2.10", "2.11", "2.12", "2.13", "2.14"],
+      "fix_description": "Update Log4j to 2.17.1 or later. Remove JndiLookup class from classpath.",
+      "kb_patch": null,
+      "reference_url": "https://logging.apache.org/log4j/2.x/security.html"
+    },
+    {
+      "cve_id": "CVE-2021-26855",
+      "severity": "Critical",
+      "description": "ProxyLogon - Microsoft Exchange Server server-side request forgery vulnerability allowing authentication bypass and remote code execution.",
+      "affected_software": "Microsoft Exchange Server",
+      "affected_versions": ["Exchange Server 2013", "Exchange Server 2016", "Exchange Server 2019"],
+      "fix_description": "Apply the March 2021 Exchange Server security updates immediately.",
+      "kb_patch": "KB5000871",
+      "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2021-26855"
+    },
+    {
+      "cve_id": "CVE-2021-34473",
+      "severity": "Critical",
+      "description": "ProxyShell - Microsoft Exchange Server remote code execution vulnerability allowing unauthenticated attackers to execute arbitrary commands.",
+      "affected_software": "Microsoft Exchange Server",
+      "affected_versions": ["Exchange Server 2013", "Exchange Server 2016", "Exchange Server 2019"],
+      "fix_description": "Apply the April/May 2021 Exchange Server cumulative updates.",
+      "kb_patch": "KB5001779",
+      "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2021-34473"
+    },
+    {
+      "cve_id": "CVE-2021-34523",
+      "severity": "Critical",
+      "description": "ProxyShell - Microsoft Exchange Server elevation of privilege vulnerability in the PowerShell backend.",
+      "affected_software": "Microsoft Exchange Server",
+      "affected_versions": ["Exchange Server 2013", "Exchange Server 2016", "Exchange Server 2019"],
+      "fix_description": "Apply the April/May 2021 Exchange Server cumulative updates.",
+      "kb_patch": "KB5001779",
+      "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2021-34523"
+    },
+    {
+      "cve_id": "CVE-2021-31207",
+      "severity": "High",
+      "description": "ProxyShell - Microsoft Exchange Server security feature bypass vulnerability allowing post-authentication arbitrary file write.",
+      "affected_software": "Microsoft Exchange Server",
+      "affected_versions": ["Exchange Server 2013", "Exchange Server 2016", "Exchange Server 2019"],
+      "fix_description": "Apply the May 2021 Exchange Server security updates.",
+      "kb_patch": "KB5003435",
+      "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2021-31207"
+    },
+    {
+      "cve_id": "CVE-2021-40444",
+      "severity": "Critical",
+      "description": "MSHTML Remote Code Execution - Microsoft MSHTML engine vulnerability exploited via crafted ActiveX controls in Office documents.",
+      "affected_software": "MSHTML",
+      "affected_versions": ["Windows 7", "Windows 8.1", "Windows 10", "Windows Server 2008", "Windows Server 2012", "Windows Server 2016", "Windows Server 2019"],
+      "fix_description": "Apply the September 2021 cumulative security update. Disable ActiveX controls in Internet Explorer.",
+      "kb_patch": "KB5005565",
+      "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2021-40444"
+    },
+    {
+      "cve_id": "CVE-2022-30190",
+      "severity": "Critical",
+      "description": "Follina - Microsoft Support Diagnostic Tool (MSDT) remote code execution vulnerability exploited through crafted Office documents calling MSDT via ms-msdt protocol.",
+      "affected_software": "Microsoft Support Diagnostic Tool",
+      "affected_versions": ["Windows 7", "Windows 8.1", "Windows 10", "Windows 11", "Windows Server 2008", "Windows Server 2012", "Windows Server 2016", "Windows Server 2019", "Windows Server 2022"],
+      "fix_description": "Apply the June 2022 cumulative update. Disable the MSDT URL protocol as a workaround.",
+      "kb_patch": "KB5014699",
+      "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2022-30190"
+    },
+    {
+      "cve_id": "CVE-2020-0601",
+      "severity": "Critical",
+      "description": "CurveBall - Windows CryptoAPI spoofing vulnerability allowing attackers to spoof code-signing certificates and sign malicious executables.",
+      "affected_software": "Windows CryptoAPI",
+      "affected_versions": ["Windows 10", "Windows Server 2016", "Windows Server 2019"],
+      "fix_description": "Apply the January 2020 Patch Tuesday update.",
+      "kb_patch": "KB4528760",
+      "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2020-0601"
+    },
+    {
+      "cve_id": "CVE-2020-1350",
+      "severity": "Critical",
+      "description": "SIGRed - Windows DNS Server remote code execution vulnerability. Wormable, CVSS 10.0 rated.",
+      "affected_software": "Windows DNS Server",
+      "affected_versions": ["Windows Server 2003", "Windows Server 2008", "Windows Server 2012", "Windows Server 2016", "Windows Server 2019"],
+      "fix_description": "Apply the July 2020 security update. Apply registry workaround to limit TCP DNS response size.",
+      "kb_patch": "KB4565529",
+      "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2020-1350"
+    },
+    {
+      "cve_id": "CVE-2021-26857",
+      "severity": "Critical",
+      "description": "Microsoft Exchange Server insecure deserialization vulnerability in the Unified Messaging service, part of ProxyLogon chain.",
+      "affected_software": "Microsoft Exchange Server",
+      "affected_versions": ["Exchange Server 2013", "Exchange Server 2016", "Exchange Server 2019"],
+      "fix_description": "Apply the March 2021 Exchange Server security updates.",
+      "kb_patch": "KB5000871",
+      "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2021-26857"
+    },
+    {
+      "cve_id": "CVE-2022-26134",
+      "severity": "Critical",
+      "description": "Atlassian Confluence Server OGNL injection vulnerability allowing unauthenticated remote code execution. Impacts Windows Confluence installations.",
+      "affected_software": "Atlassian Confluence",
+      "affected_versions": ["Confluence Server 7.4", "Confluence Server 7.13", "Confluence Server 7.14", "Confluence Server 7.15", "Confluence Server 7.16", "Confluence Server 7.17", "Confluence Server 7.18"],
+      "fix_description": "Update Confluence to the latest patched version (7.4.17, 7.13.7, 7.14.3, 7.15.2, 7.16.4, 7.17.4, 7.18.1 or later).",
+      "kb_patch": null,
+      "reference_url": "https://confluence.atlassian.com/doc/confluence-security-advisory-2022-06-02-1130377146.html"
+    },
+    {
+      "cve_id": "CVE-2022-41040",
+      "severity": "High",
+      "description": "ProxyNotShell - Microsoft Exchange Server elevation of privilege vulnerability via server-side request forgery.",
+      "affected_software": "Microsoft Exchange Server",
+      "affected_versions": ["Exchange Server 2013", "Exchange Server 2016", "Exchange Server 2019"],
+      "fix_description": "Apply the November 2022 Exchange Server security updates.",
+      "kb_patch": "KB5019758",
+      "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2022-41040"
+    },
+    {
+      "cve_id": "CVE-2022-41082",
+      "severity": "Critical",
+      "description": "ProxyNotShell - Microsoft Exchange Server remote code execution vulnerability via PowerShell remoting.",
+      "affected_software": "Microsoft Exchange Server",
+      "affected_versions": ["Exchange Server 2013", "Exchange Server 2016", "Exchange Server 2019"],
+      "fix_description": "Apply the November 2022 Exchange Server security updates.",
+      "kb_patch": "KB5019758",
+      "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2022-41082"
+    },
+    {
+      "cve_id": "CVE-2023-23397",
+      "severity": "Critical",
+      "description": "Microsoft Outlook elevation of privilege vulnerability. Attackers can exploit this by sending a crafted email to steal NTLM credentials without user interaction.",
+      "affected_software": "Microsoft Outlook",
+      "affected_versions": ["Outlook 2013", "Outlook 2016", "Outlook 2019", "Microsoft 365 Apps"],
+      "fix_description": "Apply the March 2023 security update for Outlook.",
+      "kb_patch": "KB5002265",
+      "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2023-23397"
+    },
+    {
+      "cve_id": "CVE-2023-36884",
+      "severity": "High",
+      "description": "Office and Windows HTML remote code execution vulnerability exploited via specially crafted Microsoft Office documents.",
+      "affected_software": "Microsoft Office",
+      "affected_versions": ["Office 2013", "Office 2016", "Office 2019", "Microsoft 365 Apps", "Windows 10", "Windows 11"],
+      "fix_description": "Apply the August 2023 security updates. Block all Office applications from creating child processes as a workaround.",
+      "kb_patch": "KB5029244",
+      "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2023-36884"
+    },
+    {
+      "cve_id": "CVE-2023-44487",
+      "severity": "High",
+      "description": "HTTP/2 Rapid Reset Attack - denial of service vulnerability affecting Windows HTTP/2 implementations including IIS.",
+      "affected_software": "Windows IIS",
+      "affected_versions": ["Windows 10", "Windows 11", "Windows Server 2016", "Windows Server 2019", "Windows Server 2022"],
+      "fix_description": "Apply the October 2023 cumulative security update. Configure HTTP/2 limits.",
+      "kb_patch": "KB5031356",
+      "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2023-44487"
+    },
+    {
+      "cve_id": "CVE-2024-21351",
+      "severity": "High",
+      "description": "Windows SmartScreen security feature bypass vulnerability allowing attackers to bypass SmartScreen protection.",
+      "affected_software": "Windows SmartScreen",
+      "affected_versions": ["Windows 10", "Windows 11", "Windows Server 2016", "Windows Server 2019", "Windows Server 2022"],
+      "fix_description": "Apply the February 2024 Patch Tuesday update.",
+      "kb_patch": "KB5034763",
+      "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2024-21351"
+    },
+    {
+      "cve_id": "CVE-2024-21412",
+      "severity": "High",
+      "description": "Internet Shortcut Files security feature bypass vulnerability allowing attackers to bypass Mark of the Web warnings.",
+      "affected_software": "Windows",
+      "affected_versions": ["Windows 10", "Windows 11", "Windows Server 2016", "Windows Server 2019", "Windows Server 2022"],
+      "fix_description": "Apply the February 2024 Patch Tuesday update.",
+      "kb_patch": "KB5034763",
+      "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2024-21412"
+    },
+    {
+      "cve_id": "CVE-2024-30088",
+      "severity": "High",
+      "description": "Windows Kernel elevation of privilege vulnerability allowing local attackers to gain SYSTEM privileges.",
+      "affected_software": "Windows Kernel",
+      "affected_versions": ["Windows 10", "Windows 11", "Windows Server 2016", "Windows Server 2019", "Windows Server 2022"],
+      "fix_description": "Apply the June 2024 Patch Tuesday update.",
+      "kb_patch": "KB5039211",
+      "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2024-30088"
+    },
+    {
+      "cve_id": "CVE-2020-0796",
+      "severity": "Critical",
+      "description": "SMBGhost - Windows SMBv3 Client/Server remote code execution vulnerability. Wormable vulnerability in SMBv3 compression.",
+      "affected_software": "Windows SMB",
+      "affected_versions": ["Windows 10 1903", "Windows 10 1909", "Windows Server 1903", "Windows Server 1909"],
+      "fix_description": "Apply the KB4551762 update. Disable SMBv3 compression as a workaround.",
+      "kb_patch": "KB4551762",
+      "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2020-0796"
+    },
+    {
+      "cve_id": "CVE-2021-36942",
+      "severity": "High",
+      "description": "PetitPotam - Windows LSA spoofing vulnerability allowing NTLM relay attacks against Active Directory Certificate Services.",
+      "affected_software": "Windows LSA",
+      "affected_versions": ["Windows Server 2008", "Windows Server 2012", "Windows Server 2016", "Windows Server 2019"],
+      "fix_description": "Apply the August 2021 security update. Enable EPA on AD CS and disable NTLM on domain controllers.",
+      "kb_patch": "KB5005565",
+      "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2021-36942"
+    },
+    {
+      "cve_id": "CVE-2022-21907",
+      "severity": "Critical",
+      "description": "HTTP Protocol Stack remote code execution vulnerability. Wormable, allows unauthenticated attackers to send specially crafted packets to Windows HTTP servers.",
+      "affected_software": "Windows HTTP",
+      "affected_versions": ["Windows 10", "Windows 11", "Windows Server 2019", "Windows Server 2022"],
+      "fix_description": "Apply the January 2022 Patch Tuesday update. Disable HTTP Trailer Support as a workaround.",
+      "kb_patch": "KB5009543",
+      "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2022-21907"
+    },
+    {
+      "cve_id": "CVE-2023-21823",
+      "severity": "High",
+      "description": "Windows Graphics Component remote code execution vulnerability exploited in the wild. Allows code execution via malicious image files.",
+      "affected_software": "Windows Graphics",
+      "affected_versions": ["Windows 10", "Windows 11", "Windows Server 2008", "Windows Server 2012", "Windows Server 2016", "Windows Server 2019", "Windows Server 2022"],
+      "fix_description": "Apply the February 2023 Patch Tuesday update. Update Microsoft Office from Microsoft Store.",
+      "kb_patch": "KB5022834",
+      "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2023-21823"
+    },
+    {
+      "cve_id": "CVE-2024-49138",
+      "severity": "High",
+      "description": "Windows Common Log File System Driver elevation of privilege vulnerability allowing local attackers to gain SYSTEM privileges.",
+      "affected_software": "Windows CLFS",
+      "affected_versions": ["Windows 10", "Windows 11", "Windows Server 2016", "Windows Server 2019", "Windows Server 2022"],
+      "fix_description": "Apply the December 2024 Patch Tuesday update.",
+      "kb_patch": "KB5048652",
+      "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2024-49138"
+    },
+    {
+      "cve_id": "CVE-2025-21298",
+      "severity": "Critical",
+      "description": "Windows OLE remote code execution vulnerability. Attackers can exploit this via a specially crafted email viewed in Microsoft Outlook.",
+      "affected_software": "Windows OLE",
+      "affected_versions": ["Windows 10", "Windows 11", "Windows Server 2016", "Windows Server 2019", "Windows Server 2022"],
+      "fix_description": "Apply the January 2025 Patch Tuesday update. Read emails in plain text as a workaround.",
+      "kb_patch": "KB5049981",
+      "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2025-21298"
+    },
+    {
+      "cve_id": "CVE-2025-21391",
+      "severity": "High",
+      "description": "Windows Storage elevation of privilege vulnerability allowing local attackers to delete targeted files on a system leading to denial of service.",
+      "affected_software": "Windows Storage",
+      "affected_versions": ["Windows 10", "Windows 11", "Windows Server 2016", "Windows Server 2019", "Windows Server 2022"],
+      "fix_description": "Apply the February 2025 Patch Tuesday update.",
+      "kb_patch": "KB5051974",
+      "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2025-21391"
+    }
+  ]
+}
