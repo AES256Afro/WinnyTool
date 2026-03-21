@@ -2189,9 +2189,35 @@ class WinnyToolApp:
         """Apply a router security fix command in a background thread."""
         import subprocess
 
+        confirm = messagebox.askyesno(
+            "Apply Fix",
+            f"Are you sure you want to apply this fix?\n\n"
+            f"Command: {command[:200]}\n\n"
+            f"This may require administrator privileges.",
+            icon="warning",
+        )
+        if not confirm:
+            return
+
         def do_fix():
             try:
-                subprocess.run(command, shell=True, check=True, timeout=30)
+                # Detect PowerShell commands and route through powershell.exe
+                ps_keywords = ("Get-", "Set-", "New-Item", "Remove-Item",
+                               "ForEach-Object", "$_.", "Where-Object")
+                if any(kw in command for kw in ps_keywords):
+                    full_cmd = ["powershell", "-NoProfile", "-ExecutionPolicy",
+                                "Bypass", "-Command", command]
+                    result = subprocess.run(
+                        full_cmd, capture_output=True, text=True, timeout=30,
+                        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+                    )
+                else:
+                    result = subprocess.run(
+                        command, shell=True, capture_output=True, text=True, timeout=30,
+                        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+                    )
+                if result.returncode != 0:
+                    raise RuntimeError(result.stderr.strip() or f"Exit code {result.returncode}")
                 self.root.after(
                     0, lambda: self.status_var.set("Fix applied successfully")
                 )
