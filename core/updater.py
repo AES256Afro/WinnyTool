@@ -12,8 +12,8 @@ import urllib.request
 import urllib.error
 from typing import Optional
 
-CURRENT_VERSION = "1.0.0"
-GITHUB_REPO = "winnytool/WinnyTool"  # Change this to your actual repo
+CURRENT_VERSION = "1.4.0"
+GITHUB_REPO = "AES256Afro/WinnyTool"
 GITHUB_API_URL = "https://api.github.com/repos/{repo}/releases/latest"
 
 
@@ -79,8 +79,9 @@ def check_for_updates(repo: str = GITHUB_REPO) -> dict:
             update_available (bool)
             current_version (str)
             latest_version (str)
-            download_url (str)
+            download_url (str)  - best asset URL (prefers .exe > .msi > .zip)
             release_notes (str)
+            assets (list[dict]) - each dict has 'name', 'url', 'size' keys
     """
     result = {
         "update_available": False,
@@ -88,6 +89,7 @@ def check_for_updates(repo: str = GITHUB_REPO) -> dict:
         "latest_version": CURRENT_VERSION,
         "download_url": "",
         "release_notes": "",
+        "assets": [],
     }
 
     url = GITHUB_API_URL.format(repo=repo)
@@ -102,13 +104,23 @@ def check_for_updates(repo: str = GITHUB_REPO) -> dict:
     result["latest_version"] = latest_tag.lstrip("v")
     result["release_notes"] = data.get("body", "No release notes provided.")
 
+    # Build structured assets list
+    raw_assets = data.get("assets", [])
+    asset_list = []
+    for asset in raw_assets:
+        asset_list.append({
+            "name": asset.get("name", ""),
+            "url": asset.get("browser_download_url", ""),
+            "size": asset.get("size", 0),
+        })
+    result["assets"] = asset_list
+
     # Find the best download asset (prefer .exe, then .zip, then .msi)
-    assets = data.get("assets", [])
     download_url = ""
     priority = {"exe": 3, "msi": 2, "zip": 1}
     best_priority = 0
 
-    for asset in assets:
+    for asset in raw_assets:
         name = asset.get("name", "").lower()
         url_candidate = asset.get("browser_download_url", "")
         ext = name.rsplit(".", 1)[-1] if "." in name else ""

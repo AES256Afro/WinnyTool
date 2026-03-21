@@ -2,7 +2,7 @@
 
 A Windows system diagnostic and optimization tool with a dark-themed GUI. WinnyTool scans for vulnerabilities, analyzes BSODs, detects performance bottlenecks, and provides one-click fixes.
 
-![Version](https://img.shields.io/badge/Version-1.3.0-orange)
+![Version](https://img.shields.io/badge/Version-1.4.0-orange)
 ![Python](https://img.shields.io/badge/Python-3.10+-blue)
 ![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11-0078D6)
 ![License](https://img.shields.io/badge/License-GPL%20v3-green)
@@ -224,6 +224,19 @@ This project is licensed under the GNU General Public License v3.0 - see the [LI
 ---
 
 ## Changelog
+
+### v1.4.0 (2026-03-21)
+**New Features:**
+- **Manual Fix Instructions** - CVE scan results now show "How to fix manually" instructions in light blue text on each finding, with step-by-step guidance
+- **Security Grade Report Export** - Export your security grade as a styled HTML report with overall grade, category breakdown, recommendations, and copyable fix commands
+- **Check for Updates Page** - New sidebar page showing current version with a "Check Now" button for on-demand update checks
+- **Auto-Update with Install** - Update prompt now downloads and installs updates directly (supports .zip extraction, .exe/.msi launch) instead of just opening the browser
+
+**Improvements:**
+- CVE result cards now show three action types: View Advisory, Apply Fix, and manual fix instructions
+- Security Grade export includes copyable command blocks for each recommendation
+- Updater correctly points to AES256Afro/WinnyTool GitHub repo
+- Version bumped to 1.4.0
 
 ### v1.3.0 (2026-03-21)
 **New Features:**
