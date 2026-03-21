@@ -656,21 +656,44 @@ def _version_affected(cve_entry: Dict, software_list: List[Dict[str, str]], os_v
     return False
 
 
-def _make_fix_action(reference_url: str, kb_patch: Optional[str] = None) -> Dict[str, str]:
-    """Create a fix_action dict with label and command (URL to open).
+def _make_fix_action(reference_url: str, kb_patch: Optional[str] = None, local_fix: Optional[Dict] = None) -> Dict:
+    """Returns a dict with 'view' and 'apply' action dicts.
 
-    Prefers the MSRC advisory page (reference_url) because KB numbers are
-    often superseded and removed from the Microsoft Update Catalog.
-    The MSRC page always has current patch download links.
+    'view'  - opens the MSRC advisory / reference URL in a browser.
+    'apply' - runs a local remediation command (install patch, disable
+              service, registry tweak, etc.).
     """
+    result: Dict[str, Any] = {}
+
+    # View advisory button
     if reference_url:
-        label = f"CVE Fix Suggestion ({kb_patch})" if kb_patch else "CVE Fix Suggestion"
-        return {"label": label, "command": reference_url}
-    if kb_patch:
+        result["view"] = {"label": "View Advisory", "command": reference_url}
+    elif kb_patch:
         # Fallback to Update Catalog only if no advisory URL
         catalog_url = f"https://www.catalog.update.microsoft.com/Search.aspx?q={kb_patch}"
-        return {"label": f"CVE Fix Suggestion ({kb_patch})", "command": catalog_url}
-    return {}
+        result["view"] = {"label": "View Advisory", "command": catalog_url}
+
+    # Apply fix button - local remediation
+    if local_fix:
+        fix_type = local_fix.get("type", "")
+        fix_cmd = local_fix.get("command", "")
+        fix_desc = local_fix.get("description", "Apply fix")
+        result["apply"] = {
+            "label": "Apply Fix",
+            "type": fix_type,
+            "command": fix_cmd,
+            "description": fix_desc,
+        }
+    elif kb_patch:
+        # Default: try to install via Windows Update
+        result["apply"] = {
+            "label": "Apply Fix",
+            "type": "windows_update",
+            "command": 'powershell -NoProfile -Command "Start-Process ms-settings:windowsupdate-action"',
+            "description": f"Open Windows Update to install {kb_patch}",
+        }
+
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -735,7 +758,7 @@ def scan_cves(db_path: str = _DEFAULT_DB_PATH) -> List[Dict[str, Any]]:
             "description": entry.get("description", ""),
             "affected_software": affected_sw,
             "fix": fix_text,
-            "fix_action": _make_fix_action(reference_url, kb_patch),
+            "fix_action": _make_fix_action(reference_url, kb_patch, entry.get("local_fix")),
         })
 
     # Sort by severity: Critical first, then High, Medium, Low

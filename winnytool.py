@@ -62,6 +62,26 @@ def is_admin():
 
 
 class WinnyToolApp:
+    # Base font sizes (at 100% scale)
+    BASE_FONT_SIZES = {
+        "regular": 10,
+        "title": 18,
+        "subtitle": 11,
+        "card_title": 12,
+        "sidebar_title": 16,
+        "sidebar": 9,
+        "status": 9,
+        "severity": 10,
+        "accent_button": 10,
+        "fix_button": 9,
+        "view_advisory_button": 9,
+        "apply_fix_button": 9,
+        "sidebar_button": 11,
+        "sidebar_active_button": 11,
+    }
+    BASE_SIDEBAR_WIDTH = 220
+    SETTINGS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "settings.json")
+
     def __init__(self, root):
         self.root = root
         self.root.title(f"{APP_NAME} v{VERSION}")
@@ -84,12 +104,36 @@ class WinnyToolApp:
         self.scan_results = {}
         self.current_page = None
 
+        # Load UI scale from settings
+        self.ui_scale = self._load_settings().get("ui_scale", 100)
+
         self._build_styles()
         self._build_layout()
         self._show_dashboard()
 
         # Check for updates on launch (background)
         threading.Thread(target=self._check_updates_bg, daemon=True).start()
+
+    def _load_settings(self):
+        """Load settings from data/settings.json."""
+        try:
+            with open(self.SETTINGS_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            return {"ui_scale": 100}
+
+    def _save_settings(self, settings):
+        """Save settings to data/settings.json."""
+        try:
+            os.makedirs(os.path.dirname(self.SETTINGS_FILE), exist_ok=True)
+            with open(self.SETTINGS_FILE, "w", encoding="utf-8") as f:
+                json.dump(settings, f, indent=2)
+        except Exception:
+            pass
+
+    def _scaled(self, base_size):
+        """Return a font size scaled by the current ui_scale percentage."""
+        return max(6, round(base_size * self.ui_scale / 100))
 
     def _build_styles(self):
         """Configure ttk styles for dark theme."""
@@ -100,53 +144,60 @@ class WinnyToolApp:
         self.style.configure("Card.TFrame", background=COLORS["card_bg"])
         self.style.configure("Medium.TFrame", background=COLORS["bg_medium"])
 
+        self._apply_scale(self.ui_scale)
+
+    def _apply_scale(self, scale_percent):
+        """Apply UI scale to all font sizes and sidebar width."""
+        self.ui_scale = scale_percent
+        s = self._scaled
+
         self.style.configure(
             "Dark.TLabel",
             background=COLORS["bg_dark"],
             foreground=COLORS["text_primary"],
-            font=("Segoe UI", 10),
+            font=("Segoe UI", s(self.BASE_FONT_SIZES["regular"])),
         )
         self.style.configure(
             "Card.TLabel",
             background=COLORS["card_bg"],
             foreground=COLORS["text_primary"],
-            font=("Segoe UI", 10),
+            font=("Segoe UI", s(self.BASE_FONT_SIZES["regular"])),
         )
         self.style.configure(
             "Title.TLabel",
             background=COLORS["bg_dark"],
             foreground=COLORS["text_primary"],
-            font=("Segoe UI", 18, "bold"),
+            font=("Segoe UI", s(self.BASE_FONT_SIZES["title"]), "bold"),
         )
         self.style.configure(
             "Subtitle.TLabel",
             background=COLORS["bg_dark"],
             foreground=COLORS["text_secondary"],
-            font=("Segoe UI", 11),
+            font=("Segoe UI", s(self.BASE_FONT_SIZES["subtitle"])),
         )
         self.style.configure(
             "CardTitle.TLabel",
             background=COLORS["card_bg"],
             foreground=COLORS["text_primary"],
-            font=("Segoe UI", 12, "bold"),
+            font=("Segoe UI", s(self.BASE_FONT_SIZES["card_title"]), "bold"),
         )
         self.style.configure(
             "SidebarTitle.TLabel",
             background=COLORS["bg_medium"],
             foreground=COLORS["accent"],
-            font=("Segoe UI", 16, "bold"),
+            font=("Segoe UI", s(self.BASE_FONT_SIZES["sidebar_title"]), "bold"),
         )
         self.style.configure(
             "Sidebar.TLabel",
             background=COLORS["bg_medium"],
             foreground=COLORS["text_secondary"],
-            font=("Segoe UI", 9),
+            font=("Segoe UI", s(self.BASE_FONT_SIZES["sidebar"])),
         )
         self.style.configure(
             "Status.TLabel",
             background=COLORS["bg_dark"],
             foreground=COLORS["text_secondary"],
-            font=("Segoe UI", 9),
+            font=("Segoe UI", s(self.BASE_FONT_SIZES["status"])),
         )
 
         # Severity label styles
@@ -155,14 +206,14 @@ class WinnyToolApp:
                 f"{sev}.TLabel",
                 background=COLORS["card_bg"],
                 foreground=color,
-                font=("Segoe UI", 10, "bold"),
+                font=("Segoe UI", s(self.BASE_FONT_SIZES["severity"]), "bold"),
             )
 
         self.style.configure(
             "Accent.TButton",
             background=COLORS["accent"],
             foreground=COLORS["text_primary"],
-            font=("Segoe UI", 10, "bold"),
+            font=("Segoe UI", s(self.BASE_FONT_SIZES["accent_button"]), "bold"),
             borderwidth=0,
             padding=(12, 6),
         )
@@ -174,7 +225,7 @@ class WinnyToolApp:
             "Fix.TButton",
             background=COLORS["success"],
             foreground=COLORS["text_primary"],
-            font=("Segoe UI", 9, "bold"),
+            font=("Segoe UI", s(self.BASE_FONT_SIZES["fix_button"]), "bold"),
             borderwidth=0,
             padding=(8, 4),
         )
@@ -183,10 +234,34 @@ class WinnyToolApp:
             background=[("active", "#27ae60")],
         )
         self.style.configure(
+            "ViewAdvisory.TButton",
+            background=COLORS["info"],
+            foreground=COLORS["text_primary"],
+            font=("Segoe UI", s(self.BASE_FONT_SIZES["view_advisory_button"]), "bold"),
+            borderwidth=0,
+            padding=(8, 4),
+        )
+        self.style.map(
+            "ViewAdvisory.TButton",
+            background=[("active", "#2980b9")],
+        )
+        self.style.configure(
+            "ApplyFix.TButton",
+            background=COLORS["success"],
+            foreground=COLORS["text_primary"],
+            font=("Segoe UI", s(self.BASE_FONT_SIZES["apply_fix_button"]), "bold"),
+            borderwidth=0,
+            padding=(8, 4),
+        )
+        self.style.map(
+            "ApplyFix.TButton",
+            background=[("active", "#27ae60")],
+        )
+        self.style.configure(
             "Sidebar.TButton",
             background=COLORS["bg_medium"],
             foreground=COLORS["text_primary"],
-            font=("Segoe UI", 11),
+            font=("Segoe UI", s(self.BASE_FONT_SIZES["sidebar_button"])),
             borderwidth=0,
             padding=(16, 10),
             anchor="w",
@@ -202,7 +277,7 @@ class WinnyToolApp:
             "SidebarActive.TButton",
             background=COLORS["bg_light"],
             foreground=COLORS["accent"],
-            font=("Segoe UI", 11, "bold"),
+            font=("Segoe UI", s(self.BASE_FONT_SIZES["sidebar_active_button"]), "bold"),
             borderwidth=0,
             padding=(16, 10),
             anchor="w",
@@ -216,6 +291,11 @@ class WinnyToolApp:
             borderwidth=0,
         )
 
+        # Scale the sidebar width if it has been built
+        scaled_width = max(150, round(self.BASE_SIDEBAR_WIDTH * self.ui_scale / 100))
+        if hasattr(self, "sidebar"):
+            self.sidebar.configure(width=scaled_width)
+
     def _build_layout(self):
         """Build the main application layout."""
         # Main container
@@ -223,7 +303,8 @@ class WinnyToolApp:
         self.main_frame.pack(fill=tk.BOTH, expand=True)
 
         # Sidebar
-        self.sidebar = ttk.Frame(self.main_frame, style="Medium.TFrame", width=220)
+        scaled_width = max(150, round(self.BASE_SIDEBAR_WIDTH * self.ui_scale / 100))
+        self.sidebar = ttk.Frame(self.main_frame, style="Medium.TFrame", width=scaled_width)
         self.sidebar.pack(side=tk.LEFT, fill=tk.Y)
         self.sidebar.pack_propagate(False)
 
@@ -280,6 +361,15 @@ class WinnyToolApp:
             fill=tk.X, padx=10, pady=5
         )
 
+        settings_btn = ttk.Button(
+            self.sidebar,
+            text="  Settings",
+            style="Sidebar.TButton",
+            command=lambda: self._navigate("settings"),
+        )
+        settings_btn.pack(fill=tk.X, padx=5, pady=1)
+        self.nav_buttons["settings"] = settings_btn
+
         ttk.Button(
             self.sidebar,
             text="  Export Report",
@@ -326,6 +416,7 @@ class WinnyToolApp:
             "network": self._show_network,
             "updates": self._show_updates,
             "history": self._show_history,
+            "settings": self._show_settings,
         }
         pages.get(page, self._show_dashboard)()
 
@@ -442,10 +533,36 @@ class WinnyToolApp:
         btn_frame = ttk.Frame(inner, style="Card.TFrame")
         btn_frame.pack(anchor="w", pady=(8, 0))
 
+        # New dual-action format: fix_action has "view" and/or "apply" keys
         if fix_action and isinstance(fix_action, dict):
-            fix_actions = [fix_action] + fix_actions
+            view_info = fix_action.get("view")
+            apply_info = fix_action.get("apply")
 
-        for action in fix_actions[:3]:  # Max 3 buttons per card
+            if view_info or apply_info:
+                # New format with view/apply sub-dicts
+                if view_info and view_info.get("command"):
+                    btn = ttk.Button(
+                        btn_frame,
+                        text=f">> {view_info.get('label', 'View Advisory')}",
+                        style="ViewAdvisory.TButton",
+                        command=lambda url=view_info["command"]: self._open_advisory(url),
+                    )
+                    btn.pack(side=tk.LEFT, padx=(0, 8))
+
+                if apply_info and apply_info.get("command"):
+                    btn = ttk.Button(
+                        btn_frame,
+                        text=f">> {apply_info.get('label', 'Apply Fix')}",
+                        style="ApplyFix.TButton",
+                        command=lambda info=apply_info: self._apply_local_fix(info),
+                    )
+                    btn.pack(side=tk.LEFT, padx=(0, 8))
+            elif fix_action.get("command"):
+                # Backward compat: old single-action format with "label"/"command"
+                fix_actions = [fix_action] + fix_actions
+
+        # Render any remaining fix_actions (old format or extra actions)
+        for action in fix_actions[:3]:
             label = action.get("label", "Apply Fix")
             command = action.get("command", "")
             if command:
@@ -456,6 +573,83 @@ class WinnyToolApp:
                     command=lambda cmd=command, lbl=label: self._execute_fix(cmd, lbl),
                 )
                 btn.pack(side=tk.LEFT, padx=(0, 8))
+
+    def _open_advisory(self, url):
+        """Open a CVE advisory URL in the default browser."""
+        import webbrowser
+        webbrowser.open(url)
+
+    def _apply_local_fix(self, fix_info):
+        """Apply a local fix from CVE scan results."""
+        fix_type = fix_info.get("type", "")
+        command = fix_info.get("command", "")
+        description = fix_info.get("description", "Apply fix")
+
+        confirm = messagebox.askyesno(
+            "Apply Local Fix",
+            f"Are you sure you want to apply this fix?\n\n"
+            f"Action: {description}\n"
+            f"Type: {fix_type}\n\n"
+            f"Some fixes may require administrator privileges and a system restart.",
+            icon="warning",
+        )
+        if not confirm:
+            return
+
+        self.status_var.set(f"Applying fix: {description}...")
+        self.root.update()
+
+        def run_local_fix():
+            try:
+                import subprocess as sp
+                if fix_type == "windows_update":
+                    # Open Windows Update settings
+                    os.system(command)
+                    self.root.after(0, lambda: messagebox.showinfo(
+                        "Windows Update",
+                        "Windows Update has been opened.\n"
+                        "Please check for and install available updates.",
+                    ))
+                elif fix_type in ("command", "service_disable", "registry"):
+                    if is_admin():
+                        result = sp.run(
+                            command, shell=True, capture_output=True,
+                            text=True, timeout=120,
+                            creationflags=getattr(sp, "CREATE_NO_WINDOW", 0),
+                        )
+                        if result.returncode == 0:
+                            self.root.after(0, lambda: messagebox.showinfo(
+                                "Fix Applied",
+                                f"Successfully applied:\n{description}\n\n"
+                                f"{result.stdout[:500] if result.stdout else 'Done.'}\n\n"
+                                f"A restart may be required for changes to take effect.",
+                            ))
+                        else:
+                            self.root.after(0, lambda: messagebox.showwarning(
+                                "Warning",
+                                f"Command completed with issues:\n{result.stderr[:500]}",
+                            ))
+                    else:
+                        # Elevate via UAC
+                        ctypes.windll.shell32.ShellExecuteW(
+                            None, "runas", "cmd.exe", f"/c {command}", None, 1
+                        )
+                        self.root.after(0, lambda: messagebox.showinfo(
+                            "Fix Applied",
+                            f"Elevated command executed.\n{description}\n\n"
+                            "A restart may be required for changes to take effect.",
+                        ))
+                else:
+                    # Unknown type - try running as command
+                    os.system(command)
+            except Exception as e:
+                self.root.after(0, lambda: messagebox.showerror(
+                    "Error", f"Failed to apply fix:\n{str(e)}"
+                ))
+            finally:
+                self.root.after(0, lambda: self.status_var.set("Ready"))
+
+        threading.Thread(target=run_local_fix, daemon=True).start()
 
     def _execute_fix(self, command, label):
         """Execute a fix action with confirmation."""
@@ -1836,6 +2030,100 @@ class WinnyToolApp:
 
         for result in results:
             self._create_result_card(parent, result, category)
+
+    # ===== PAGE: Settings =====
+    def _show_settings(self):
+        self._clear_content()
+        self._navigate_highlight("settings")
+        scroll = self._make_scrollable(self.content_frame)
+
+        self._create_page_header(
+            scroll,
+            "Settings",
+            "Customize the application appearance",
+        )
+
+        # UI Scale section
+        scale_card = ttk.Frame(scroll, style="Card.TFrame")
+        scale_card.pack(fill=tk.X, padx=20, pady=10)
+
+        scale_inner = ttk.Frame(scale_card, style="Card.TFrame")
+        scale_inner.pack(fill=tk.X, padx=15, pady=15)
+
+        ttk.Label(
+            scale_inner, text="UI Scale", style="CardTitle.TLabel"
+        ).pack(anchor="w")
+
+        ttk.Label(
+            scale_inner,
+            text="Adjust the size of all text and the sidebar width.",
+            style="Card.TLabel",
+            foreground=COLORS["text_secondary"],
+        ).pack(anchor="w", pady=(4, 10))
+
+        # Current scale display
+        scale_value_var = tk.StringVar(value=f"{self.ui_scale}%")
+        scale_display = ttk.Label(
+            scale_inner, textvariable=scale_value_var, style="CardTitle.TLabel"
+        )
+        scale_display.pack(anchor="w", pady=(0, 5))
+
+        # Slider
+        scale_var = tk.IntVar(value=self.ui_scale)
+
+        def on_scale_change(val):
+            pct = int(float(val))
+            scale_var.set(pct)
+            scale_value_var.set(f"{pct}%")
+
+        slider = tk.Scale(
+            scale_inner,
+            from_=80,
+            to=200,
+            orient=tk.HORIZONTAL,
+            variable=scale_var,
+            command=on_scale_change,
+            bg=COLORS["card_bg"],
+            fg=COLORS["text_primary"],
+            troughcolor=COLORS["bg_light"],
+            highlightthickness=0,
+            sliderrelief="flat",
+            length=400,
+            font=("Segoe UI", self._scaled(self.BASE_FONT_SIZES["sidebar"])),
+        )
+        slider.pack(anchor="w", pady=(0, 10))
+
+        # Preset buttons
+        preset_frame = ttk.Frame(scale_inner, style="Card.TFrame")
+        preset_frame.pack(anchor="w", pady=(0, 10))
+
+        presets = [
+            ("Compact (80%)", 80),
+            ("Normal (100%)", 100),
+            ("Large (140%)", 140),
+        ]
+
+        for label, value in presets:
+            ttk.Button(
+                preset_frame,
+                text=label,
+                style="Accent.TButton",
+                command=lambda v=value: (scale_var.set(v), on_scale_change(v)),
+            ).pack(side=tk.LEFT, padx=(0, 8))
+
+        # Apply button
+        def apply_scale():
+            new_scale = scale_var.get()
+            self._apply_scale(new_scale)
+            self._save_settings({"ui_scale": new_scale})
+            self.status_var.set(f"UI scale set to {new_scale}%")
+
+        ttk.Button(
+            scale_inner,
+            text="Apply Scale",
+            style="Accent.TButton",
+            command=apply_scale,
+        ).pack(anchor="w", pady=(5, 0))
 
     # ===== Full Scan =====
     def _run_full_scan(self):
