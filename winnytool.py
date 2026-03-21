@@ -92,9 +92,11 @@ class WinnyToolApp:
         self.root.minsize(1000, 700)
         self.root.configure(bg=COLORS["bg_dark"])
 
-        # Try to set icon
+        # Set window icon
         try:
-            self.root.iconbitmap(default="")
+            icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "winnytool.ico")
+            if os.path.exists(icon_path):
+                self.root.iconbitmap(icon_path)
         except Exception:
             pass
 
