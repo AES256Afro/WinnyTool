@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from core import sysinfo, cve_scanner, bsod_analyzer, performance
 from core import startup_mgr, disk_health, network_diag, winupdate
-from core import updater, reporter, history
+from core import updater, reporter, history, hardening
 
 VERSION = "1.0.0"
 APP_NAME = "WinnyTool"
@@ -253,6 +253,7 @@ class WinnyToolApp:
             ("cve", "CVE Scanner"),
             ("bsod", "BSOD Analyzer"),
             ("performance", "Performance"),
+            ("hardening", "Hardening"),
             ("startup", "Startup Manager"),
             ("disk", "Disk Health"),
             ("network", "Network"),
@@ -318,6 +319,7 @@ class WinnyToolApp:
             "cve": self._show_cve,
             "bsod": self._show_bsod,
             "performance": self._show_performance,
+            "hardening": self._show_hardening,
             "startup": self._show_startup,
             "disk": self._show_disk,
             "network": self._show_network,
@@ -662,13 +664,47 @@ class WinnyToolApp:
             "Check your system against known vulnerabilities",
         )
 
-        scan_btn = ttk.Button(
-            header,
+        # CVE database stats
+        stats = cve_scanner.get_cve_db_stats()
+        stats_frame = ttk.Frame(header, style="Dark.TFrame")
+        stats_frame.pack(anchor="w", pady=(5, 0))
+        ttk.Label(
+            stats_frame,
+            text=f"Database: {stats['total']} CVEs | Last updated: {stats['last_updated']}",
+            style="Subtitle.TLabel",
+        ).pack(side=tk.LEFT)
+
+        # Action buttons row
+        btn_frame = ttk.Frame(header, style="Dark.TFrame")
+        btn_frame.pack(anchor="w", pady=(10, 0))
+
+        ttk.Button(
+            btn_frame,
             text="Scan Now",
             style="Accent.TButton",
             command=lambda: self._run_cve_scan(scroll),
-        )
-        scan_btn.pack(anchor="w", pady=(10, 0))
+        ).pack(side=tk.LEFT, padx=(0, 8))
+
+        ttk.Button(
+            btn_frame,
+            text="Fetch from NVD",
+            style="Accent.TButton",
+            command=lambda: self._fetch_nvd_cves(scroll),
+        ).pack(side=tk.LEFT, padx=(0, 8))
+
+        ttk.Button(
+            btn_frame,
+            text="Import File",
+            style="Accent.TButton",
+            command=lambda: self._import_cve_file(scroll),
+        ).pack(side=tk.LEFT, padx=(0, 8))
+
+        ttk.Button(
+            btn_frame,
+            text="Add Manually",
+            style="Accent.TButton",
+            command=self._add_cve_manually_dialog,
+        ).pack(side=tk.LEFT)
 
         # Show cached results if available
         if "cve" in self.scan_results:
@@ -684,6 +720,157 @@ class WinnyToolApp:
             self._display_results(parent, results, "cve")
 
         self._run_scan_threaded(cve_scanner.scan_cves, "CVE Scanner", on_results)
+
+    def _fetch_nvd_cves(self, parent):
+        """Fetch CVEs from NVD API in background."""
+        self.status_var.set("Fetching CVEs from NVD...")
+        self.root.update()
+
+        def do_fetch():
+            try:
+                stats = cve_scanner.fetch_nvd_cves()
+                self.root.after(0, lambda: messagebox.showinfo(
+                    "NVD Fetch Complete",
+                    f"Fetched: {stats['fetched']}\n"
+                    f"Imported: {stats['imported']}\n"
+                    f"Skipped (duplicates): {stats['skipped']}\n"
+                    f"Errors: {stats['errors']}",
+                ))
+                self.root.after(0, lambda: self._show_cve())  # Refresh page
+            except Exception as e:
+                self.root.after(0, lambda: messagebox.showerror(
+                    "NVD Fetch Failed", str(e),
+                ))
+            finally:
+                self.root.after(0, lambda: self.status_var.set("Ready"))
+
+        threading.Thread(target=do_fetch, daemon=True).start()
+
+    def _import_cve_file(self, parent):
+        """Import CVEs from a JSON or CSV file."""
+        filepath = filedialog.askopenfilename(
+            title="Import CVE Database",
+            filetypes=[
+                ("JSON files", "*.json"),
+                ("CSV files", "*.csv"),
+                ("All files", "*.*"),
+            ],
+        )
+        if not filepath:
+            return
+
+        self.status_var.set("Importing CVEs...")
+        self.root.update()
+
+        def do_import():
+            try:
+                stats = cve_scanner.import_cves_from_file(filepath)
+                self.root.after(0, lambda: messagebox.showinfo(
+                    "Import Complete",
+                    f"Imported: {stats['imported']}\n"
+                    f"Skipped (duplicates): {stats['skipped']}\n"
+                    f"Errors: {stats['errors']}",
+                ))
+                self.root.after(0, lambda: self._show_cve())  # Refresh page
+            except Exception as e:
+                self.root.after(0, lambda: messagebox.showerror(
+                    "Import Failed", str(e),
+                ))
+            finally:
+                self.root.after(0, lambda: self.status_var.set("Ready"))
+
+        threading.Thread(target=do_import, daemon=True).start()
+
+    def _add_cve_manually_dialog(self):
+        """Show a dialog to manually add a CVE entry."""
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Add CVE Manually")
+        dialog.geometry("550x520")
+        dialog.configure(bg=COLORS["bg_dark"])
+        dialog.transient(self.root)
+        dialog.grab_set()
+
+        fields = {}
+        field_defs = [
+            ("cve_id", "CVE ID (e.g., CVE-2024-12345):", ""),
+            ("severity", "Severity:", "Medium"),
+            ("description", "Description:", ""),
+            ("affected_software", "Affected Software:", ""),
+            ("affected_versions", "Affected Versions (comma-separated):", ""),
+            ("fix_description", "Fix Description:", ""),
+            ("kb_patch", "KB Patch (optional):", ""),
+            ("reference_url", "Reference URL (optional):", ""),
+        ]
+
+        for key, label, default in field_defs:
+            lbl = tk.Label(
+                dialog, text=label, bg=COLORS["bg_dark"],
+                fg=COLORS["text_primary"], font=("Segoe UI", 10),
+            )
+            lbl.pack(anchor="w", padx=15, pady=(8, 2))
+
+            if key == "severity":
+                var = tk.StringVar(value=default)
+                combo = ttk.Combobox(
+                    dialog, textvariable=var,
+                    values=["Critical", "High", "Medium", "Low"],
+                    state="readonly", width=40,
+                )
+                combo.pack(anchor="w", padx=15)
+                fields[key] = var
+            elif key == "description":
+                txt = tk.Text(
+                    dialog, height=3, width=50,
+                    bg=COLORS["card_bg"], fg=COLORS["text_primary"],
+                    insertbackground=COLORS["text_primary"],
+                    font=("Segoe UI", 10),
+                )
+                txt.pack(anchor="w", padx=15)
+                fields[key] = txt
+            else:
+                var = tk.StringVar(value=default)
+                entry = tk.Entry(
+                    dialog, textvariable=var, width=55,
+                    bg=COLORS["card_bg"], fg=COLORS["text_primary"],
+                    insertbackground=COLORS["text_primary"],
+                    font=("Segoe UI", 10),
+                )
+                entry.pack(anchor="w", padx=15)
+                fields[key] = var
+
+        def submit():
+            try:
+                desc = fields["description"].get("1.0", tk.END).strip() if isinstance(fields["description"], tk.Text) else fields["description"].get()
+                versions_raw = fields["affected_versions"].get()
+                versions = [v.strip() for v in versions_raw.split(",") if v.strip()]
+
+                cve_dict = {
+                    "cve_id": fields["cve_id"].get().strip(),
+                    "severity": fields["severity"].get(),
+                    "description": desc,
+                    "affected_software": fields["affected_software"].get().strip(),
+                    "affected_versions": versions,
+                    "fix_description": fields["fix_description"].get().strip(),
+                    "kb_patch": fields["kb_patch"].get().strip() or None,
+                    "reference_url": fields["reference_url"].get().strip(),
+                }
+
+                cve_id = cve_scanner.add_cve_manually(cve_dict)
+                messagebox.showinfo("Success", f"{cve_id} added to database.")
+                dialog.destroy()
+                self._show_cve()  # Refresh
+            except (ValueError, RuntimeError) as e:
+                messagebox.showerror("Error", str(e))
+
+        btn_frame = tk.Frame(dialog, bg=COLORS["bg_dark"])
+        btn_frame.pack(pady=15)
+
+        ttk.Button(btn_frame, text="Add CVE", style="Accent.TButton", command=submit).pack(
+            side=tk.LEFT, padx=5
+        )
+        ttk.Button(btn_frame, text="Cancel", style="Sidebar.TButton", command=dialog.destroy).pack(
+            side=tk.LEFT, padx=5
+        )
 
     # ===== PAGE: BSOD Analyzer =====
     def _show_bsod(self):
@@ -867,6 +1054,307 @@ class WinnyToolApp:
         self._run_scan_threaded(
             performance.scan_performance, "Performance Optimizer", on_results
         )
+
+    # ===== PAGE: System Hardening =====
+    def _show_hardening(self):
+        self._clear_content()
+        self._navigate_highlight("hardening")
+        scroll = self._make_scrollable(self.content_frame)
+
+        header = self._create_page_header(
+            scroll,
+            "System Hardening",
+            "Security hardening recommendations in three tiers",
+        )
+
+        # Tier selector
+        tier_frame = ttk.Frame(header, style="Dark.TFrame")
+        tier_frame.pack(anchor="w", pady=(10, 0))
+
+        self._hardening_tier = tk.StringVar(value="Basic")
+
+        tier_descriptions = {
+            "Basic": "Safe for everyone - essential security settings",
+            "Moderate": "Recommended for most users - stronger protections",
+            "Aggressive": "Maximum security - may break some workflows",
+        }
+
+        for tier in ["Basic", "Moderate", "Aggressive"]:
+            rb = tk.Radiobutton(
+                tier_frame,
+                text=f" {tier}",
+                variable=self._hardening_tier,
+                value=tier,
+                bg=COLORS["bg_dark"],
+                fg=COLORS["text_primary"],
+                selectcolor=COLORS["bg_light"],
+                activebackground=COLORS["bg_dark"],
+                activeforeground=COLORS["accent"],
+                font=("Segoe UI", 11, "bold"),
+                indicatoron=True,
+                command=lambda: self._refresh_hardening(scroll),
+            )
+            rb.pack(side=tk.LEFT, padx=(0, 20))
+
+        # Tier description
+        self._tier_desc_label = ttk.Label(
+            header,
+            text=tier_descriptions["Basic"],
+            style="Subtitle.TLabel",
+        )
+        self._tier_desc_label.pack(anchor="w", pady=(5, 0))
+
+        # Buttons
+        btn_frame = ttk.Frame(header, style="Dark.TFrame")
+        btn_frame.pack(anchor="w", pady=(10, 0))
+
+        ttk.Button(
+            btn_frame,
+            text="Scan Current Status",
+            style="Accent.TButton",
+            command=lambda: self._run_hardening_scan(scroll),
+        ).pack(side=tk.LEFT, padx=(0, 8))
+
+        ttk.Button(
+            btn_frame,
+            text="Apply All for This Tier",
+            style="Accent.TButton",
+            command=lambda: self._apply_all_hardening(),
+        ).pack(side=tk.LEFT)
+
+        # Results container
+        self._hardening_results_frame = ttk.Frame(scroll, style="Dark.TFrame")
+        self._hardening_results_frame.pack(fill=tk.X)
+
+        if "hardening" in self.scan_results:
+            self._display_hardening_results(self.scan_results["hardening"])
+
+    def _refresh_hardening(self, scroll):
+        """Refresh hardening display when tier changes."""
+        tier = self._hardening_tier.get()
+        tier_descriptions = {
+            "Basic": "Safe for everyone - essential security settings",
+            "Moderate": "Recommended for most users - stronger protections",
+            "Aggressive": "Maximum security - may break some workflows",
+        }
+        self._tier_desc_label.configure(text=tier_descriptions.get(tier, ""))
+        if "hardening" in self.scan_results:
+            self._display_hardening_results(self.scan_results["hardening"])
+
+    def _run_hardening_scan(self, scroll):
+        """Run hardening scan in background."""
+        def on_results(results):
+            self.scan_results["hardening"] = results
+            self._display_hardening_results(results)
+
+        self._run_scan_threaded(
+            hardening.scan_hardening, "System Hardening", on_results
+        )
+
+    def _display_hardening_results(self, results):
+        """Display hardening results filtered by selected tier."""
+        # Clear previous
+        for w in self._hardening_results_frame.winfo_children():
+            w.destroy()
+
+        selected_tier = self._hardening_tier.get()
+        tier_order = ["Basic", "Moderate", "Aggressive"]
+        max_tier_idx = tier_order.index(selected_tier)
+        allowed_tiers = set(tier_order[: max_tier_idx + 1])
+
+        filtered = [r for r in results if r.get("tier") in allowed_tiers]
+
+        if not filtered:
+            ttk.Label(
+                self._hardening_results_frame,
+                text="No settings found. Run a scan first.",
+                style="Subtitle.TLabel",
+            ).pack(padx=20, pady=20)
+            return
+
+        # Group by tier
+        for tier in tier_order:
+            if tier not in allowed_tiers:
+                continue
+            tier_items = [r for r in filtered if r.get("tier") == tier]
+            if not tier_items:
+                continue
+
+            # Tier header
+            tier_header = ttk.Frame(self._hardening_results_frame, style="Dark.TFrame")
+            tier_header.pack(fill=tk.X, padx=20, pady=(15, 5))
+
+            tier_color = {"Basic": COLORS["success"], "Moderate": COLORS["warning"], "Aggressive": COLORS["critical"]}
+            tier_lbl = ttk.Label(
+                tier_header,
+                text=f"{tier} Tier",
+                style="Title.TLabel",
+            )
+            tier_lbl.pack(anchor="w")
+            tier_lbl.configure(foreground=tier_color.get(tier, COLORS["text_primary"]))
+
+            for item in tier_items:
+                card = ttk.Frame(self._hardening_results_frame, style="Card.TFrame")
+                card.pack(fill=tk.X, padx=20, pady=4)
+
+                inner = ttk.Frame(card, style="Card.TFrame")
+                inner.pack(fill=tk.X, padx=15, pady=10)
+
+                # Top row: status icon + setting name
+                top = ttk.Frame(inner, style="Card.TFrame")
+                top.pack(fill=tk.X)
+
+                status = item.get("status", "Unknown")
+                recommended = item.get("recommended", "Enable")
+                # Determine if current state matches recommendation
+                is_compliant = (
+                    (status == "Enabled" and recommended == "Enable")
+                    or (status == "Disabled" and recommended == "Disable")
+                )
+
+                status_text = "PASS" if is_compliant else "NEEDS FIX"
+                status_color = COLORS["success"] if is_compliant else COLORS["critical"]
+
+                status_lbl = ttk.Label(top, text=f"[{status_text}]", style="Card.TLabel")
+                status_lbl.pack(side=tk.LEFT, padx=(0, 8))
+                status_lbl.configure(foreground=status_color, font=("Segoe UI", 10, "bold"))
+
+                ttk.Label(
+                    top, text=item.get("setting", ""), style="CardTitle.TLabel"
+                ).pack(side=tk.LEFT)
+
+                ttk.Label(
+                    top, text=f"Currently: {status}", style="Card.TLabel",
+                    foreground=COLORS["text_secondary"],
+                ).pack(side=tk.RIGHT)
+
+                # Description
+                ttk.Label(
+                    inner, text=item.get("description", ""),
+                    style="Card.TLabel", wraplength=700,
+                ).pack(anchor="w", pady=(5, 0))
+
+                # Pros and Cons side by side
+                pros_cons = ttk.Frame(inner, style="Card.TFrame")
+                pros_cons.pack(fill=tk.X, pady=(8, 0))
+
+                # Pros
+                pros_frame = ttk.Frame(pros_cons, style="Card.TFrame")
+                pros_frame.pack(side=tk.LEFT, fill=tk.X, expand=True, anchor="n")
+
+                pros_title = ttk.Label(pros_frame, text="Pros:", style="Card.TLabel")
+                pros_title.pack(anchor="w")
+                pros_title.configure(foreground=COLORS["success"], font=("Segoe UI", 9, "bold"))
+
+                for pro in item.get("pros", []):
+                    pro_lbl = ttk.Label(
+                        pros_frame, text=f"  + {pro}",
+                        style="Card.TLabel", wraplength=340,
+                    )
+                    pro_lbl.pack(anchor="w")
+                    pro_lbl.configure(foreground=COLORS["success"])
+
+                # Cons
+                cons_frame = ttk.Frame(pros_cons, style="Card.TFrame")
+                cons_frame.pack(side=tk.LEFT, fill=tk.X, expand=True, anchor="n")
+
+                cons_title = ttk.Label(cons_frame, text="Cons:", style="Card.TLabel")
+                cons_title.pack(anchor="w")
+                cons_title.configure(foreground=COLORS["warning"], font=("Segoe UI", 9, "bold"))
+
+                for con in item.get("cons", []):
+                    con_lbl = ttk.Label(
+                        cons_frame, text=f"  - {con}",
+                        style="Card.TLabel", wraplength=340,
+                    )
+                    con_lbl.pack(anchor="w")
+                    con_lbl.configure(foreground=COLORS["warning"])
+
+                # Fix button (only show if not compliant)
+                if not is_compliant:
+                    fix = item.get("fix_action", {})
+                    if fix and fix.get("command"):
+                        btn_fr = ttk.Frame(inner, style="Card.TFrame")
+                        btn_fr.pack(anchor="w", pady=(8, 0))
+                        ttk.Button(
+                            btn_fr,
+                            text=f">> {fix.get('label', 'Apply Fix')}",
+                            style="Fix.TButton",
+                            command=lambda c=fix["command"], l=fix["label"]: self._execute_fix(c, l),
+                        ).pack(side=tk.LEFT)
+
+    def _apply_all_hardening(self):
+        """Apply all hardening fixes for the selected tier."""
+        if "hardening" not in self.scan_results:
+            messagebox.showinfo("No Data", "Run a hardening scan first.")
+            return
+
+        tier = self._hardening_tier.get()
+        tier_order = ["Basic", "Moderate", "Aggressive"]
+        max_tier_idx = tier_order.index(tier)
+        allowed_tiers = set(tier_order[: max_tier_idx + 1])
+
+        fixes = []
+        for item in self.scan_results["hardening"]:
+            if item.get("tier") not in allowed_tiers:
+                continue
+            status = item.get("status", "Unknown")
+            recommended = item.get("recommended", "Enable")
+            is_compliant = (
+                (status == "Enabled" and recommended == "Enable")
+                or (status == "Disabled" and recommended == "Disable")
+            )
+            if not is_compliant:
+                fix = item.get("fix_action", {})
+                if fix and fix.get("command"):
+                    fixes.append(fix)
+
+        if not fixes:
+            messagebox.showinfo("All Good", f"All {tier} tier settings are already compliant!")
+            return
+
+        confirm = messagebox.askyesno(
+            "Apply All Fixes",
+            f"Apply {len(fixes)} fix(es) for {tier} tier and below?\n\n"
+            f"This will modify system settings. Some changes may require a restart.\n"
+            f"Administrator privileges are required.",
+            icon="warning",
+        )
+        if not confirm:
+            return
+
+        self.status_var.set(f"Applying {len(fixes)} hardening fixes...")
+        self.root.update()
+
+        def apply_all():
+            success = 0
+            failed = 0
+            for fix in fixes:
+                try:
+                    import subprocess as sp
+                    cmd = fix["command"]
+                    if cmd.startswith("powershell"):
+                        sp.run(cmd, shell=True, capture_output=True, timeout=30,
+                               creationflags=getattr(sp, "CREATE_NO_WINDOW", 0))
+                    elif cmd.startswith("start "):
+                        os.system(cmd)
+                    else:
+                        sp.run(cmd, shell=True, capture_output=True, timeout=30,
+                               creationflags=getattr(sp, "CREATE_NO_WINDOW", 0))
+                    success += 1
+                except Exception:
+                    failed += 1
+
+            self.root.after(0, lambda: messagebox.showinfo(
+                "Hardening Complete",
+                f"Applied: {success}\nFailed: {failed}\n\n"
+                f"Some changes may require a restart to take effect.",
+            ))
+            self.root.after(0, lambda: self.status_var.set("Ready"))
+            # Re-scan to update status
+            self.root.after(500, lambda: self._show_hardening())
+
+        threading.Thread(target=apply_all, daemon=True).start()
 
     # ===== PAGE: Startup Manager =====
     def _show_startup(self):
@@ -1190,6 +1678,7 @@ class WinnyToolApp:
                 ("Disk Health", disk_health.scan_disk_health, "disk"),
                 ("Network", network_diag.scan_network, "network"),
                 ("Windows Update", winupdate.scan_updates, "updates"),
+                ("System Hardening", hardening.scan_hardening, "hardening"),
             ]
 
             total = len(scans)

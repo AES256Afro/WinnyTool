@@ -8,10 +8,13 @@ checks for missing security patches (KBs), and returns actionable findings.
 import json
 import os
 import re
+import csv
 import subprocess
 import logging
 import webbrowser
-import functools
+import urllib.request
+import urllib.parse
+import datetime
 from typing import List, Dict, Optional, Callable, Any
 
 logger = logging.getLogger(__name__)
@@ -41,19 +44,265 @@ def _load_cve_db(db_path: str = _DEFAULT_DB_PATH) -> List[Dict]:
         return []
 
 
-def update_cve_db(db_path: str = _DEFAULT_DB_PATH) -> bool:
-    """Placeholder for CVE database refresh logic.
+def _save_cve_db(cves: List[Dict], db_path: str = _DEFAULT_DB_PATH) -> bool:
+    """Write CVE entries back to the JSON database file."""
+    data = {
+        "version": "1.1.0",
+        "last_updated": datetime.datetime.now().strftime("%Y-%m-%d"),
+        "cves": cves,
+    }
+    try:
+        os.makedirs(os.path.dirname(db_path), exist_ok=True)
+        with open(db_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        return True
+    except (OSError, TypeError) as exc:
+        logger.error("Failed to save CVE database: %s", exc)
+        return False
 
-    In a production implementation this would:
-    - Fetch the latest CVE feed from NVD / MSRC APIs
-    - Merge new entries into the local JSON file
-    - Validate the schema before writing
 
-    Returns True on success.
+def _validate_cve_entry(entry: Dict) -> Dict:
+    """Validate and normalize a CVE entry to match expected schema.
+    Returns the validated entry or raises ValueError."""
+    cve_id = entry.get("cve_id", "").strip()
+    if not cve_id or not re.match(r"^CVE-\d{4}-\d{4,}$", cve_id):
+        raise ValueError(f"Invalid CVE ID: {cve_id!r}")
+    valid_severities = {"Critical", "High", "Medium", "Low"}
+    severity = entry.get("severity", "Medium")
+    if severity not in valid_severities:
+        severity = "Medium"
+    return {
+        "cve_id": cve_id,
+        "severity": severity,
+        "description": entry.get("description", ""),
+        "affected_software": entry.get("affected_software", ""),
+        "affected_versions": entry.get("affected_versions", []),
+        "fix_description": entry.get("fix_description", ""),
+        "kb_patch": entry.get("kb_patch") or None,
+        "reference_url": entry.get("reference_url", ""),
+    }
+
+
+def get_cve_db_stats(db_path: str = _DEFAULT_DB_PATH) -> Dict[str, Any]:
+    """Return stats about the current CVE database."""
+    try:
+        with open(db_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        cves = data.get("cves", [])
+        severity_counts = {}
+        for c in cves:
+            sev = c.get("severity", "Unknown")
+            severity_counts[sev] = severity_counts.get(sev, 0) + 1
+        return {
+            "total": len(cves),
+            "last_updated": data.get("last_updated", "Unknown"),
+            "version": data.get("version", "Unknown"),
+            "by_severity": severity_counts,
+        }
+    except Exception:
+        return {"total": 0, "last_updated": "Unknown", "version": "Unknown", "by_severity": {}}
+
+
+def add_cve_manually(cve_dict: Dict, db_path: str = _DEFAULT_DB_PATH) -> str:
+    """Validate and add a single CVE entry to the database.
+    Returns the CVE ID on success, raises ValueError on validation failure."""
+    validated = _validate_cve_entry(cve_dict)
+    cves = _load_cve_db(db_path)
+    # Deduplicate
+    existing_ids = {c["cve_id"] for c in cves}
+    if validated["cve_id"] in existing_ids:
+        raise ValueError(f"{validated['cve_id']} already exists in database")
+    cves.append(validated)
+    if not _save_cve_db(cves, db_path):
+        raise RuntimeError("Failed to write CVE database")
+    return validated["cve_id"]
+
+
+def import_cves_from_file(filepath: str, db_path: str = _DEFAULT_DB_PATH) -> Dict[str, int]:
+    """Import CVEs from a JSON or CSV file.
+
+    JSON format: either a list of CVE dicts, or {"cves": [...]}.
+    CSV format: columns must include cve_id, severity, description,
+                affected_software. Optional: affected_versions (semicolon-separated),
+                fix_description, kb_patch, reference_url.
+
+    Returns {"imported": N, "skipped": N, "errors": N}.
     """
-    logger.info("update_cve_db called for %s -- not yet implemented", db_path)
-    # TODO: implement remote fetch & merge
-    return False
+    filepath = filepath.strip()
+    ext = os.path.splitext(filepath)[1].lower()
+    new_entries = []
+
+    if ext == ".json":
+        with open(filepath, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if isinstance(data, list):
+            raw_entries = data
+        elif isinstance(data, dict):
+            raw_entries = data.get("cves", data.get("vulnerabilities", []))
+        else:
+            raise ValueError("JSON file must contain a list or object with 'cves' key")
+        for entry in raw_entries:
+            new_entries.append(entry)
+
+    elif ext == ".csv":
+        with open(filepath, "r", encoding="utf-8", newline="") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                entry = {
+                    "cve_id": row.get("cve_id", "").strip(),
+                    "severity": row.get("severity", "Medium").strip(),
+                    "description": row.get("description", "").strip(),
+                    "affected_software": row.get("affected_software", "").strip(),
+                    "affected_versions": [
+                        v.strip() for v in row.get("affected_versions", "").split(";") if v.strip()
+                    ],
+                    "fix_description": row.get("fix_description", "").strip(),
+                    "kb_patch": row.get("kb_patch", "").strip() or None,
+                    "reference_url": row.get("reference_url", "").strip(),
+                }
+                new_entries.append(entry)
+    else:
+        raise ValueError(f"Unsupported file type: {ext}. Use .json or .csv")
+
+    # Load existing, deduplicate, validate, merge
+    cves = _load_cve_db(db_path)
+    existing_ids = {c["cve_id"] for c in cves}
+    stats = {"imported": 0, "skipped": 0, "errors": 0}
+
+    for entry in new_entries:
+        try:
+            validated = _validate_cve_entry(entry)
+            if validated["cve_id"] in existing_ids:
+                stats["skipped"] += 1
+                continue
+            cves.append(validated)
+            existing_ids.add(validated["cve_id"])
+            stats["imported"] += 1
+        except ValueError:
+            stats["errors"] += 1
+
+    if stats["imported"] > 0:
+        _save_cve_db(cves, db_path)
+
+    return stats
+
+
+def fetch_nvd_cves(
+    keyword: str = "microsoft windows",
+    max_results: int = 50,
+    db_path: str = _DEFAULT_DB_PATH,
+) -> Dict[str, int]:
+    """Fetch CVEs from the NVD API 2.0 and merge into local database.
+
+    Args:
+        keyword: Search keyword for NVD API.
+        max_results: Maximum number of CVEs to fetch (capped at 200).
+        db_path: Path to local CVE database.
+
+    Returns {"imported": N, "skipped": N, "errors": N, "fetched": N}.
+    """
+    max_results = min(max_results, 200)
+    base_url = "https://services.nvd.nist.gov/rest/json/cves/2.0"
+    params = {
+        "keywordSearch": keyword,
+        "resultsPerPage": str(max_results),
+    }
+    url = f"{base_url}?{urllib.parse.urlencode(params)}"
+
+    logger.info("Fetching CVEs from NVD: %s", url)
+    req = urllib.request.Request(url, headers={"User-Agent": "WinnyTool/1.0"})
+
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+    except Exception as exc:
+        logger.error("NVD API request failed: %s", exc)
+        raise RuntimeError(f"Failed to fetch from NVD: {exc}")
+
+    vulnerabilities = data.get("vulnerabilities", [])
+    stats = {"fetched": len(vulnerabilities), "imported": 0, "skipped": 0, "errors": 0}
+
+    cves = _load_cve_db(db_path)
+    existing_ids = {c["cve_id"] for c in cves}
+
+    severity_map = {
+        "CRITICAL": "Critical",
+        "HIGH": "High",
+        "MEDIUM": "Medium",
+        "LOW": "Low",
+    }
+
+    for vuln_wrapper in vulnerabilities:
+        try:
+            cve_data = vuln_wrapper.get("cve", {})
+            cve_id = cve_data.get("id", "")
+            if not cve_id or cve_id in existing_ids:
+                stats["skipped"] += 1
+                continue
+
+            # Extract description (English preferred)
+            descriptions = cve_data.get("descriptions", [])
+            desc = ""
+            for d in descriptions:
+                if d.get("lang") == "en":
+                    desc = d.get("value", "")
+                    break
+            if not desc and descriptions:
+                desc = descriptions[0].get("value", "")
+
+            # Extract severity from CVSS metrics
+            severity = "Medium"
+            metrics = cve_data.get("metrics", {})
+            for metric_key in ["cvssMetricV31", "cvssMetricV30", "cvssMetricV2"]:
+                metric_list = metrics.get(metric_key, [])
+                if metric_list:
+                    raw_sev = metric_list[0].get("cvssData", {}).get("baseSeverity", "")
+                    severity = severity_map.get(raw_sev.upper(), "Medium")
+                    break
+
+            # Extract references
+            refs = cve_data.get("references", [])
+            ref_url = refs[0].get("url", "") if refs else ""
+
+            # Extract affected software from configurations
+            affected_sw = "Windows"
+            configurations = cve_data.get("configurations", [])
+            for config in configurations:
+                for node in config.get("nodes", []):
+                    for match in node.get("cpeMatch", []):
+                        criteria = match.get("criteria", "")
+                        if "microsoft" in criteria.lower():
+                            # Extract product name from CPE
+                            parts = criteria.split(":")
+                            if len(parts) >= 5:
+                                vendor = parts[3]
+                                product = parts[4].replace("_", " ").title()
+                                affected_sw = f"{vendor.title()} {product}"
+                            break
+
+            entry = {
+                "cve_id": cve_id,
+                "severity": severity,
+                "description": desc[:500],
+                "affected_software": affected_sw,
+                "affected_versions": [],
+                "fix_description": "Apply the latest security updates from Microsoft.",
+                "kb_patch": None,
+                "reference_url": ref_url,
+            }
+
+            validated = _validate_cve_entry(entry)
+            cves.append(validated)
+            existing_ids.add(cve_id)
+            stats["imported"] += 1
+        except Exception as exc:
+            logger.debug("Failed to parse NVD entry: %s", exc)
+            stats["errors"] += 1
+
+    if stats["imported"] > 0:
+        _save_cve_db(cves, db_path)
+
+    return stats
 
 
 # ---------------------------------------------------------------------------
@@ -236,18 +485,14 @@ def _version_affected(cve_entry: Dict, software_list: List[Dict[str, str]], os_v
     return False
 
 
-def _make_fix_action(reference_url: str, kb_patch: Optional[str] = None) -> Callable:
-    """Create a callable that opens the reference URL or Microsoft Update Catalog for the KB."""
-    def _open_url(url: str = reference_url) -> None:
-        webbrowser.open(url)
-
+def _make_fix_action(reference_url: str, kb_patch: Optional[str] = None) -> Dict[str, str]:
+    """Create a fix_action dict with label and command (URL to open)."""
     if kb_patch:
         catalog_url = f"https://www.catalog.update.microsoft.com/Search.aspx?q={kb_patch}"
-        def _open_kb(url: str = catalog_url, ref: str = reference_url) -> None:
-            webbrowser.open(url)
-        return _open_kb
-
-    return _open_url
+        return {"label": f"Download {kb_patch}", "command": catalog_url}
+    if reference_url:
+        return {"label": "View Advisory", "command": reference_url}
+    return {}
 
 
 # ---------------------------------------------------------------------------
