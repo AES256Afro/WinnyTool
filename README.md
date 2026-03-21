@@ -2,7 +2,7 @@
 
 A Windows system diagnostic and optimization tool with a dark-themed GUI. WinnyTool scans for vulnerabilities, analyzes BSODs, detects performance bottlenecks, and provides one-click fixes.
 
-![Version](https://img.shields.io/badge/Version-1.1.0-orange)
+![Version](https://img.shields.io/badge/Version-1.2.0-orange)
 ![Python](https://img.shields.io/badge/Python-3.10+-blue)
 ![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11-0078D6)
 ![License](https://img.shields.io/badge/License-GPL%20v3-green)
@@ -12,9 +12,10 @@ A Windows system diagnostic and optimization tool with a dark-themed GUI. WinnyT
 ## Features
 
 ### CVE Scanner
-- Local database of 30+ real Windows CVEs (2017-2025) including PrintNightmare, Zerologon, Follina, Log4Shell, and more
+- Local database of **100+ real Windows CVEs** (2017-2026) including PrintNightmare, Zerologon, Follina, Log4Shell, and more
 - Checks installed software and OS patches against known vulnerabilities
-- Links to Microsoft Update Catalog for remediation
+- **Dual action buttons** per CVE: "View CVE" links to MSRC advisory, "Apply Fix" runs the remediation locally (Windows Update, disable service, registry mitigation, etc.)
+- Links to Microsoft Security Response Center for full advisory details
 - **CVE Feed Import** - Pull new CVEs from NVD (NIST), CISA KEV, or custom JSON feeds
 - **Manual CVE Entry** - Add custom CVEs through the GUI with full metadata (severity, affected software, fix info)
 - Automatic deduplication when importing from multiple sources
@@ -68,6 +69,12 @@ Each setting shows:
 ### System Info Dashboard
 - CPU, RAM, GPU, disk drives, uptime, and antivirus at a glance
 
+### UI Scaling (NEW)
+- **Preset modes**: Compact (80%), Normal (100%), Large (140%)
+- **Fine-tune slider**: Adjust from 80% to 200% for any display
+- Settings persist across sessions via `data/settings.json`
+- Scales all fonts, sidebar width, and widget padding proportionally
+
 ### Additional Features
 - **GitHub Auto-Updater** - Checks for new releases on launch
 - **HTML Report Export** - Generate styled reports of all findings
@@ -78,7 +85,7 @@ Each setting shows:
 
 ## CVE Database Management
 
-WinnyTool ships with 30+ built-in CVEs and supports three ways to expand the database:
+WinnyTool ships with 100+ built-in CVEs and supports multiple ways to expand the database:
 
 ### 1. NVD Feed (NIST)
 Pull CVEs from the National Vulnerability Database filtered to Windows-related entries. Requires a free NVD API key from https://nvd.nist.gov/developers/request-an-api-key.
@@ -164,7 +171,8 @@ WinnyTool/
 │   ├── reporter.py           # HTML/text report generation
 │   └── history.py            # SQLite scan history
 └── data/
-    └── cve_db.json           # CVE database (30 entries)
+    ├── cve_db.json           # CVE database (100+ entries)
+    └── settings.json         # User preferences (UI scale, etc.)
 ```
 
 ---
@@ -183,6 +191,18 @@ This project is licensed under the GNU General Public License v3.0 - see the [LI
 ---
 
 ## Changelog
+
+### v1.2.0 (2026-03-21)
+**New Features:**
+- **UI Scaling** - Settings page with Compact/Normal/Large presets and a fine-tune slider (80%-200%). Persists across sessions
+- **Expanded CVE Database** - Now ships with 100+ real Windows CVEs covering 2017-2026, with emphasis on 2024-2026 vulnerabilities
+- **Dual CVE Action Buttons** - Each CVE now has two buttons: "View CVE" (opens MSRC advisory) and "Apply Fix" (runs local remediation — installs KB patches, disables vulnerable services, applies registry mitigations)
+- **Folder/File CVE Import** - Drag-and-drop or browse to import entire folders of CVE JSON files (compatible with CVE-List repository format)
+
+**Improvements:**
+- CVE fix actions now execute locally instead of just linking to Microsoft Update Catalog
+- Local fixes include: `wusa.exe` KB installation, service disable via `sc`, registry mitigations, and PowerShell commands
+- All fix actions require user confirmation before executing
 
 ### v1.1.0 (2026-03-21)
 **New Features:**
