@@ -187,6 +187,177 @@ def import_cves_from_file(filepath: str, db_path: str = _DEFAULT_DB_PATH) -> Dic
     return stats
 
 
+def _parse_cve5_record(data: Dict) -> Optional[Dict]:
+    """Parse a single CVE 5.x record (from cve.org CVE-List download) into WinnyTool format.
+
+    Handles the schema used by https://www.cve.org/downloads (CVE_RECORD with
+    cveMetadata + containers.cna structure).
+    Returns a validated CVE dict, or None if not parseable/not relevant.
+    """
+    try:
+        # Must be a published CVE record
+        metadata = data.get("cveMetadata", {})
+        if metadata.get("state") != "PUBLISHED":
+            return None
+
+        cve_id = metadata.get("cveId", "")
+        if not cve_id:
+            return None
+
+        cna = data.get("containers", {}).get("cna", {})
+        if not cna:
+            return None
+
+        # Description - prefer English
+        desc = ""
+        for d in cna.get("descriptions", []):
+            if d.get("lang", "").startswith("en"):
+                desc = d.get("value", "")
+                # Strip HTML tags if present
+                desc = re.sub(r"<[^>]+>", "", desc).strip()
+                break
+        if not desc:
+            descs = cna.get("descriptions", [])
+            if descs:
+                desc = re.sub(r"<[^>]+>", "", descs[0].get("value", "")).strip()
+
+        # Affected products
+        affected_products = []
+        affected_versions = []
+        for aff in cna.get("affected", []):
+            vendor = aff.get("vendor", "Unknown")
+            product = aff.get("product", "Unknown")
+            affected_products.append(f"{vendor} {product}")
+            for ver in aff.get("versions", []):
+                if ver.get("status") == "affected":
+                    v = ver.get("version", "")
+                    if v:
+                        affected_versions.append(v)
+
+        affected_sw = ", ".join(affected_products) if affected_products else "Unknown"
+
+        # Severity from metrics (CVSS v3.1 / v3.0 / v2)
+        severity = "Medium"
+        for metric_block in cna.get("metrics", []):
+            for key in ["cvssV3_1", "cvssV3_0", "cvssV31", "cvssV30"]:
+                cvss = metric_block.get(key, {})
+                if cvss:
+                    raw_sev = cvss.get("baseSeverity", "")
+                    sev_map = {"CRITICAL": "Critical", "HIGH": "High", "MEDIUM": "Medium", "LOW": "Low"}
+                    severity = sev_map.get(raw_sev.upper(), "Medium")
+                    break
+
+        # References
+        ref_url = ""
+        for ref in cna.get("references", []):
+            url = ref.get("url", "")
+            if url:
+                ref_url = url
+                break
+
+        entry = {
+            "cve_id": cve_id,
+            "severity": severity,
+            "description": desc[:500] if desc else f"Vulnerability in {affected_sw}",
+            "affected_software": affected_sw,
+            "affected_versions": affected_versions[:10],
+            "fix_description": "Apply the latest security updates from the vendor.",
+            "kb_patch": None,
+            "reference_url": ref_url,
+        }
+
+        return _validate_cve_entry(entry)
+    except Exception:
+        return None
+
+
+def import_cves_from_folder(
+    folder_path: str,
+    db_path: str = _DEFAULT_DB_PATH,
+    filter_vendors: Optional[List[str]] = None,
+    progress_callback: Optional[Callable[[int, int], None]] = None,
+) -> Dict[str, int]:
+    """Recursively import CVE 5.x JSON files from a folder (e.g., cve.org CVE-List download).
+
+    Walks the folder tree, reads each .json file, parses it as a CVE 5.x record,
+    and merges new entries into the local database with deduplication.
+
+    Args:
+        folder_path: Root folder containing CVE JSON files (supports nested year/prefix structure).
+        db_path: Path to the local CVE database.
+        filter_vendors: Optional list of vendor keywords to filter by (e.g., ["microsoft", "windows"]).
+                        If None, imports ALL CVEs found.
+        progress_callback: Optional callback(processed, total) for progress updates.
+
+    Returns {"imported": N, "skipped": N, "errors": N, "scanned": N}.
+    """
+    folder_path = os.path.normpath(folder_path)
+    if not os.path.isdir(folder_path):
+        raise ValueError(f"Not a valid folder: {folder_path}")
+
+    # Collect all JSON file paths first
+    json_files = []
+    for root, _dirs, files in os.walk(folder_path):
+        for fname in files:
+            if fname.lower().endswith(".json") and fname.upper().startswith("CVE-"):
+                json_files.append(os.path.join(root, fname))
+
+    total = len(json_files)
+    stats = {"scanned": total, "imported": 0, "skipped": 0, "errors": 0}
+
+    if total == 0:
+        return stats
+
+    # Load existing DB
+    cves = _load_cve_db(db_path)
+    existing_ids = {c["cve_id"] for c in cves}
+
+    # Normalize vendor filter
+    vendor_filters = None
+    if filter_vendors:
+        vendor_filters = [v.lower() for v in filter_vendors]
+
+    for idx, fpath in enumerate(json_files):
+        try:
+            with open(fpath, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            parsed = _parse_cve5_record(data)
+            if parsed is None:
+                stats["errors"] += 1
+                continue
+
+            # Apply vendor filter if specified
+            if vendor_filters:
+                sw_lower = parsed.get("affected_software", "").lower()
+                if not any(v in sw_lower for v in vendor_filters):
+                    stats["skipped"] += 1
+                    continue
+
+            if parsed["cve_id"] in existing_ids:
+                stats["skipped"] += 1
+                continue
+
+            cves.append(parsed)
+            existing_ids.add(parsed["cve_id"])
+            stats["imported"] += 1
+
+        except (json.JSONDecodeError, OSError):
+            stats["errors"] += 1
+
+        # Progress callback every 100 files
+        if progress_callback and (idx + 1) % 100 == 0:
+            progress_callback(idx + 1, total)
+
+    if progress_callback:
+        progress_callback(total, total)
+
+    if stats["imported"] > 0:
+        _save_cve_db(cves, db_path)
+
+    return stats
+
+
 def fetch_nvd_cves(
     keyword: str = "microsoft windows",
     max_results: int = 50,
