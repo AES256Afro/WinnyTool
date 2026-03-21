@@ -12,7 +12,7 @@ A Windows system diagnostic and optimization tool with a dark-themed GUI. WinnyT
 ## Features
 
 ### CVE Scanner
-- Local database of **100+ real Windows CVEs** (2017-2026) including PrintNightmare, Zerologon, Follina, Log4Shell, and more
+- Local database of **36 real Windows CVEs** (2024-2026) focused on recent and actively exploited vulnerabilities
 - Checks installed software and OS patches against known vulnerabilities
 - **Dual action buttons** per CVE: "View CVE" links to MSRC advisory, "Apply Fix" runs the remediation locally (Windows Update, disable service, registry mitigation, etc.)
 - Links to Microsoft Security Response Center for full advisory details
@@ -85,7 +85,7 @@ Each setting shows:
 
 ## CVE Database Management
 
-WinnyTool ships with 100+ built-in CVEs and supports multiple ways to expand the database:
+WinnyTool ships with 36 built-in CVEs (2024-2026) and supports multiple ways to expand the database:
 
 ### 1. NVD Feed (NIST)
 Pull CVEs from the National Vulnerability Database filtered to Windows-related entries. Requires a free NVD API key from https://nvd.nist.gov/developers/request-an-api-key.
@@ -171,7 +171,7 @@ WinnyTool/
 │   ├── reporter.py           # HTML/text report generation
 │   └── history.py            # SQLite scan history
 └── data/
-    ├── cve_db.json           # CVE database (100+ entries)
+    ├── cve_db.json           # CVE database (36 entries, 2024-2026)
     └── settings.json         # User preferences (UI scale, etc.)
 ```
 
@@ -195,7 +195,7 @@ This project is licensed under the GNU General Public License v3.0 - see the [LI
 ### v1.2.0 (2026-03-21)
 **New Features:**
 - **UI Scaling** - Settings page with Compact/Normal/Large presets and a fine-tune slider (80%-200%). Persists across sessions
-- **Expanded CVE Database** - Now ships with 100+ real Windows CVEs covering 2017-2026, with emphasis on 2024-2026 vulnerabilities
+- **Focused CVE Database** - Stripped pre-2024 entries, now ships with 36 CVEs covering 2024-2026 only
 - **Dual CVE Action Buttons** - Each CVE now has two buttons: "View CVE" (opens MSRC advisory) and "Apply Fix" (runs local remediation — installs KB patches, disables vulnerable services, applies registry mitigations)
 - **Folder/File CVE Import** - Drag-and-drop or browse to import entire folders of CVE JSON files (compatible with CVE-List repository format)
 
