@@ -38,7 +38,13 @@ WELL_KNOWN_SECURE_DNS = {
     "8.8.8.8", "8.8.4.4",                # Google
     "9.9.9.9", "149.112.112.112",         # Quad9
     "208.67.222.222", "208.67.220.220",   # OpenDNS
-    "94.140.14.14", "94.140.15.15",       # AdGuard
+    "94.140.14.14", "94.140.15.15",       # AdGuard Default
+    "94.140.14.15", "94.140.15.16",       # AdGuard Family
+    "94.140.14.49", "94.140.14.59",       # AdGuard Unfiltered
+    "94.140.14.140", "94.140.14.141",     # AdGuard Non-filtering
+    "76.76.2.0", "76.76.10.0",            # Control D
+    "185.228.168.9", "185.228.169.9",     # CleanBrowsing
+    "45.90.28.0", "45.90.30.0",           # NextDNS
 }
 
 STATUS_ORDER = {"Fail": 0, "Warning": 1, "Info": 2, "Pass": 3, "Unknown": 4}
