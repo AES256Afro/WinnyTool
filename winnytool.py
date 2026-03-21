@@ -591,6 +591,17 @@ class WinnyToolApp:
                     )
                     btn.pack(side=tk.LEFT, padx=(0, 8))
 
+                # Download KB button (opens Microsoft Update Catalog)
+                download_info = fix_action.get("download")
+                if download_info and download_info.get("command"):
+                    btn = ttk.Button(
+                        btn_frame,
+                        text=f">> {download_info.get('label', 'Download KB')}",
+                        style="Accent.TButton",
+                        command=lambda url=download_info["command"]: self._open_advisory(url),
+                    )
+                    btn.pack(side=tk.LEFT, padx=(0, 8))
+
                 if apply_info and apply_info.get("command"):
                     btn = ttk.Button(
                         btn_frame,
