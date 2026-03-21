@@ -12,6 +12,13 @@ import sys
 import json
 import ctypes
 import datetime
+import base64
+
+# Set AppUserModelID so Windows taskbar shows our icon, not Python's
+try:
+    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("WinnyTool.WinnyTool.1.4")
+except Exception:
+    pass
 
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -25,6 +32,9 @@ from core.resources import get_security_resources, open_resource
 
 VERSION = "1.4.0"
 APP_NAME = "WinnyTool"
+
+# Embedded 64x64 shield logo (base64 PNG)
+LOGO_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAABN0lEQVR42u3bQQ7CIBCF4TmFi+68gEdw5z16fU+h+4aWAWZgKP9LWNlU3hfa2FRECCHkJN/P/rvLAAAAAAAAAAAAAKgC2LbXtAMAAAAAwATgLBFKXs3NdAVERMjNCQAAjG+CkRA0cwkJcBUAAAgOUIpgkdryAADg+CygnYAHQAnUUADL3Bag5LhhAI/nOznOkvv8eKz2OM13HscwgJJSFlgAADAAQDtxzUS9zhkKQFPe+rwAtABYI3gAuJZvvRmOBDArn3pRWjPZkvIt521+IeqF4AHQtXzukhgN0KX4FcJIgO7lU5eEdXkNQrcl34rgARCifAqiB0Co4hoES4Cw5XOXRGv5cEu+9vdCzZiqfOlzhLb89HsOlixfe0lMu+St/3W67DacpfciiSy8IUtk4V1pQgghpH/+KOkdDNK04DEAAAAASUVORK5CYII="
 
 # --- Color Scheme ---
 COLORS = {
@@ -313,12 +323,28 @@ class WinnyToolApp:
         self.sidebar.pack(side=tk.LEFT, fill=tk.Y)
         self.sidebar.pack_propagate(False)
 
-        # App title in sidebar
+        # App title in sidebar with logo
         title_frame = ttk.Frame(self.sidebar, style="Medium.TFrame")
         title_frame.pack(fill=tk.X, pady=(20, 5), padx=10)
-        ttk.Label(title_frame, text=APP_NAME, style="SidebarTitle.TLabel").pack(
-            anchor="w"
-        )
+
+        # Load logo
+        try:
+            logo_data = base64.b64decode(LOGO_BASE64)
+            self._logo_image = tk.PhotoImage(data=logo_data)
+            # Scale down for sidebar (32x32 from 64x64)
+            self._logo_small = self._logo_image.subsample(2, 2)
+            logo_row = ttk.Frame(title_frame, style="Medium.TFrame")
+            logo_row.pack(fill=tk.X, anchor="w")
+            tk.Label(logo_row, image=self._logo_small, bg=COLORS["bg_medium"]).pack(
+                side=tk.LEFT, padx=(0, 8)
+            )
+            ttk.Label(logo_row, text=APP_NAME, style="SidebarTitle.TLabel").pack(
+                side=tk.LEFT, anchor="w"
+            )
+        except Exception:
+            ttk.Label(title_frame, text=APP_NAME, style="SidebarTitle.TLabel").pack(
+                anchor="w"
+            )
         ttk.Label(title_frame, text=f"v{VERSION}", style="Sidebar.TLabel").pack(
             anchor="w"
         )
