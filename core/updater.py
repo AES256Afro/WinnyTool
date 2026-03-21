@@ -5,6 +5,7 @@ Uses only stdlib (urllib.request, json) with no external dependencies.
 """
 
 import json
+import logging
 import os
 import subprocess
 import tempfile
@@ -53,17 +54,17 @@ def _fetch_json(url: str) -> Optional[dict]:
             return json.loads(response.read().decode("utf-8"))
     except urllib.error.HTTPError as e:
         if e.code == 403:
-            print(f"[Updater] Rate limited by GitHub API. Try again later.")
+            logging.debug("Updater: Rate limited by GitHub API.")
         elif e.code == 404:
-            print(f"[Updater] Repository or release not found.")
+            logging.debug("Updater: No releases found yet.")
         else:
-            print(f"[Updater] HTTP error {e.code}: {e.reason}")
+            logging.debug(f"Updater: HTTP error {e.code}: {e.reason}")
         return None
     except urllib.error.URLError as e:
-        print(f"[Updater] Network error: {e.reason}")
+        logging.debug(f"Updater: Network error: {e.reason}")
         return None
     except (json.JSONDecodeError, OSError) as e:
-        print(f"[Updater] Error fetching update info: {e}")
+        logging.debug(f"Updater: Error fetching update info: {e}")
         return None
 
 
