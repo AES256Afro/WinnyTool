@@ -432,12 +432,22 @@ def _score_cve_results(
         score -= deduction
         severity_counts[sev] = severity_counts.get(sev, 0) + 1
 
-        findings.append({
+        finding = {
             "check": cve.get("cve_id", "Unknown CVE"),
             "status": "Fail",
             "severity": cve.get("severity", "Medium"),
             "details": cve.get("description", ""),
-        })
+        }
+        # Preserve actionable fields for the UI
+        if cve.get("reference_url"):
+            finding["reference_url"] = cve["reference_url"]
+        if cve.get("fix_action"):
+            finding["fix_action"] = cve["fix_action"]
+        if cve.get("fix") or cve.get("fix_description"):
+            finding["fix_description"] = cve.get("fix") or cve.get("fix_description")
+        if cve.get("affected_software"):
+            finding["affected_software"] = cve["affected_software"]
+        findings.append(finding)
 
     # Build recommendations based on what was found
     if severity_counts["critical"] > 0:
@@ -515,12 +525,20 @@ def _score_standard_results(
         severity = _infer_severity(result)
         details = result.get("details", result.get("description", ""))
 
-        findings.append({
+        finding = {
             "check": check_name,
             "status": status,
             "severity": severity,
             "details": details,
-        })
+        }
+        # Preserve actionable fields for the UI
+        if result.get("fix_action"):
+            finding["fix_action"] = result["fix_action"]
+        if result.get("fix_suggestion"):
+            finding["fix_suggestion"] = result["fix_suggestion"]
+        if result.get("reference_url"):
+            finding["reference_url"] = result["reference_url"]
+        findings.append(finding)
 
         if status == "Fail":
             # Full deduction
