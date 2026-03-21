@@ -23,7 +23,7 @@ from core.router_security import scan_router_security
 from core.grading import calculate_grade, get_grade_color
 from core.resources import get_security_resources, open_resource
 
-VERSION = "1.0.0"
+VERSION = "1.3.0"
 APP_NAME = "WinnyTool"
 
 # --- Color Scheme ---
