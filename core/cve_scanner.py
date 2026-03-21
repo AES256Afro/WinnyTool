@@ -71,7 +71,7 @@ def _validate_cve_entry(entry: Dict) -> Dict:
     severity = entry.get("severity", "Medium")
     if severity not in valid_severities:
         severity = "Medium"
-    return {
+    result = {
         "cve_id": cve_id,
         "severity": severity,
         "description": entry.get("description", ""),
@@ -81,6 +81,12 @@ def _validate_cve_entry(entry: Dict) -> Dict:
         "kb_patch": entry.get("kb_patch") or None,
         "reference_url": entry.get("reference_url", ""),
     }
+    # Preserve optional extended fields
+    if entry.get("kb_patches"):
+        result["kb_patches"] = entry["kb_patches"]
+    if entry.get("patch_date"):
+        result["patch_date"] = entry["patch_date"]
+    return result
 
 
 def get_cve_db_stats(db_path: str = _DEFAULT_DB_PATH) -> Dict[str, Any]:
@@ -510,6 +516,50 @@ def _get_os_version() -> str:
         return "Unknown Windows Version"
 
 
+def _detect_os_type() -> Dict[str, str]:
+    """Detect whether the system is Windows 10 or Windows 11, plus the version (e.g., 23H2).
+
+    Returns a dict with keys:
+        'os_family': 'Windows 10', 'Windows 11', or 'Unknown'
+        'os_version': e.g., '23H2', '24H2', '22H2', '1507', or ''
+        'build': e.g., '22631', or ''
+    """
+    result = {"os_family": "Unknown", "os_version": "", "build": ""}
+    try:
+        import winreg
+        with winreg.OpenKey(
+            winreg.HKEY_LOCAL_MACHINE,
+            r"SOFTWARE\Microsoft\Windows NT\CurrentVersion",
+        ) as key:
+            product_name = winreg.QueryValueEx(key, "ProductName")[0]
+            try:
+                display_ver = winreg.QueryValueEx(key, "DisplayVersion")[0]
+            except OSError:
+                display_ver = ""
+            try:
+                build = winreg.QueryValueEx(key, "CurrentBuildNumber")[0]
+            except OSError:
+                build = ""
+
+            result["build"] = str(build)
+            result["os_version"] = display_ver
+
+            # Windows 11 builds start at 22000+
+            # Windows 10 builds are below 22000
+            build_int = int(build) if build.isdigit() else 0
+            if "windows 11" in product_name.lower() or build_int >= 22000:
+                result["os_family"] = "Windows 11"
+            elif "windows 10" in product_name.lower() or (10240 <= build_int < 22000):
+                result["os_family"] = "Windows 10"
+            elif "windows server" in product_name.lower():
+                result["os_family"] = "Windows Server"
+            else:
+                result["os_family"] = product_name
+    except Exception as exc:
+        logger.warning("Could not detect OS type from registry: %s", exc)
+    return result
+
+
 def _get_installed_software() -> List[Dict[str, str]]:
     """Enumerate installed software from the Windows registry.
 
@@ -764,6 +814,88 @@ def _make_fix_action(reference_url: str, kb_patch: Optional[str] = None, local_f
 # Public API
 # ---------------------------------------------------------------------------
 
+def _resolve_kb_for_os(entry: Dict, os_info: Dict[str, str]) -> List[str]:
+    """Return a list of KB patch IDs relevant to the detected OS.
+
+    Checks the os-specific ``kb_patches`` dict first, then falls back to the
+    legacy ``kb_patch`` string.  Returns all applicable KBs so any match counts.
+    """
+    kbs: List[str] = []
+    kb_patches = entry.get("kb_patches", {})
+    os_family = os_info.get("os_family", "")
+    os_version = os_info.get("os_version", "")  # e.g. "23H2", "24H2"
+
+    if kb_patches and os_family:
+        # Try most-specific key first: "Windows 11 23H2", then "Windows 11", then "Windows 10"
+        lookup_keys = []
+        if os_version:
+            lookup_keys.append(f"{os_family} {os_version}")
+        lookup_keys.append(os_family)
+
+        for key in lookup_keys:
+            if key in kb_patches:
+                kbs.append(kb_patches[key].upper())
+                break
+
+    # Always include the legacy kb_patch as a fallback
+    legacy = entry.get("kb_patch")
+    if legacy and legacy.upper() not in kbs:
+        kbs.append(legacy.upper())
+
+    return kbs
+
+
+def _os_is_affected(entry: Dict, os_info: Dict[str, str]) -> bool:
+    """Check whether the CVE's affected_versions list includes the detected OS.
+
+    If affected_versions contains generic entries like 'Windows 10' or 'Windows 11',
+    match against os_info['os_family'].  If it contains specific versions like
+    'Windows 10 version 1507', require an exact match against os_family + os_version.
+
+    Returns True if the CVE applies to this OS, False if it definitely does not.
+    """
+    affected_versions = entry.get("affected_versions", [])
+    if not affected_versions:
+        return True  # No version constraint -- assume affected
+
+    os_family = os_info.get("os_family", "").lower()  # e.g. "windows 11"
+    os_version = os_info.get("os_version", "").lower()  # e.g. "23h2"
+
+    for av in affected_versions:
+        av_lower = av.lower().strip()
+        # Exact match for specific versions like "Windows 10 version 1507"
+        if "version" in av_lower:
+            # Build the full string for comparison
+            full_os = f"{os_family} version {os_version}" if os_version else os_family
+            if av_lower == full_os or av_lower in full_os:
+                return True
+            continue
+        # Generic match: "Windows 10", "Windows 11", "Windows Server 2022"
+        if av_lower == os_family:
+            return True
+        if av_lower in os_family or os_family in av_lower:
+            return True
+    return False
+
+
+def _get_patch_date(entry: Dict) -> Optional[datetime.date]:
+    """Get the patch date for a CVE entry.
+
+    Prefers the explicit ``patch_date`` field (ISO format string), falls back
+    to parsing the fix_description text.
+    """
+    # Use explicit patch_date field if present
+    patch_date_str = entry.get("patch_date")
+    if patch_date_str:
+        try:
+            return datetime.datetime.strptime(patch_date_str, "%Y-%m-%d").date()
+        except (ValueError, TypeError):
+            pass
+
+    # Fall back to extracting from fix_description
+    return _extract_patch_date(entry.get("fix_description", ""))
+
+
 def scan_cves(db_path: str = _DEFAULT_DB_PATH) -> List[Dict[str, Any]]:
     """Run a CVE scan and return a list of findings.
 
@@ -784,6 +916,12 @@ def scan_cves(db_path: str = _DEFAULT_DB_PATH) -> List[Dict[str, Any]]:
     os_version = _get_os_version()
     logger.info("Detected OS: %s", os_version)
 
+    os_info = _detect_os_type()
+    logger.info(
+        "OS family: %s, version: %s, build: %s",
+        os_info["os_family"], os_info["os_version"], os_info["build"],
+    )
+
     software_list = _get_installed_software()
     logger.info("Found %d installed software entries.", len(software_list))
 
@@ -798,26 +936,41 @@ def scan_cves(db_path: str = _DEFAULT_DB_PATH) -> List[Dict[str, Any]]:
     for entry in cve_entries:
         cve_id = entry.get("cve_id", "UNKNOWN")
         affected_sw = entry.get("affected_software", "")
-        kb_patch = entry.get("kb_patch")
         reference_url = entry.get("reference_url", "")
 
         # Step 1: Does the affected software/component match anything installed?
         if not _software_matches(affected_sw, software_list, os_version):
             continue
 
-        # Step 2: Version check
+        # Step 2: Check if the CVE applies to this OS family/version
+        # (e.g., skip Win10-only CVEs on Win11 and vice versa)
+        if not _os_is_affected(entry, os_info):
+            logger.debug(
+                "CVE %s skipped: does not affect %s %s",
+                cve_id, os_info["os_family"], os_info["os_version"],
+            )
+            continue
+
+        # Step 3: Legacy version check (for non-OS software version matching)
         if not _version_affected(entry, software_list, os_version):
             continue
 
-        # Step 3: If there is a KB patch, check if it is already installed
-        if kb_patch and kb_patch.upper() in installed_kbs:
-            logger.debug("CVE %s mitigated by installed patch %s", cve_id, kb_patch)
+        # Step 4: Check if any applicable KB patch is installed
+        # Use OS-specific KB lookup, then fall back to legacy kb_patch
+        applicable_kbs = _resolve_kb_for_os(entry, os_info)
+        kb_installed = False
+        for kb in applicable_kbs:
+            if kb in installed_kbs:
+                logger.debug("CVE %s mitigated by installed patch %s", cve_id, kb)
+                kb_installed = True
+                break
+        if kb_installed:
             continue
 
-        # Step 4: Check if a cumulative update newer than the CVE patch date
-        # is installed (cumulative updates supersede individual KBs)
-        fix_desc = entry.get("fix_description", "")
-        patch_date = _extract_patch_date(fix_desc)
+        # Step 5: Check if a cumulative update newer than the CVE patch date
+        # is installed (cumulative updates supersede individual KBs --
+        # if the latest installed update is newer, the fix is included)
+        patch_date = _get_patch_date(entry)
         if patch_date and last_update_date and last_update_date >= patch_date:
             logger.debug(
                 "CVE %s likely mitigated: last update %s >= patch date %s",
@@ -825,10 +978,13 @@ def scan_cves(db_path: str = _DEFAULT_DB_PATH) -> List[Dict[str, Any]]:
             )
             continue
 
+        # Determine the best KB to recommend for this OS
+        display_kb = applicable_kbs[0] if applicable_kbs else entry.get("kb_patch")
+
         # Build the fix description
         fix_text = entry.get("fix_description", "No fix information available.")
-        if kb_patch:
-            fix_text += f" (Install {kb_patch})"
+        if display_kb:
+            fix_text += f" (Install {display_kb})"
 
         results.append({
             "cve_id": cve_id,
@@ -836,7 +992,7 @@ def scan_cves(db_path: str = _DEFAULT_DB_PATH) -> List[Dict[str, Any]]:
             "description": entry.get("description", ""),
             "affected_software": affected_sw,
             "fix": fix_text,
-            "fix_action": _make_fix_action(reference_url, kb_patch, entry.get("local_fix")),
+            "fix_action": _make_fix_action(reference_url, display_kb, entry.get("local_fix")),
         })
 
     # Sort by severity: Critical first, then High, Medium, Low

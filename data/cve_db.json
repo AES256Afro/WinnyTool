@@ -1,5 +1,5 @@
 {
-  "version": "1.1.0",
+  "version": "1.2.0",
   "last_updated": "2026-03-21",
   "cves": [
     {
@@ -16,6 +16,12 @@
       ],
       "fix_description": "Apply the February 2024 Patch Tuesday update.",
       "kb_patch": "KB5034763",
+      "kb_patches": {
+        "Windows 10": "KB5034763",
+        "Windows 11 22H2": "KB5034765",
+        "Windows 11 23H2": "KB5034765"
+      },
+      "patch_date": "2024-02-13",
       "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2024-21351"
     },
     {
@@ -32,6 +38,12 @@
       ],
       "fix_description": "Apply the February 2024 Patch Tuesday update.",
       "kb_patch": "KB5034763",
+      "kb_patches": {
+        "Windows 10": "KB5034763",
+        "Windows 11 22H2": "KB5034765",
+        "Windows 11 23H2": "KB5034765"
+      },
+      "patch_date": "2024-02-13",
       "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2024-21412"
     },
     {
@@ -48,6 +60,12 @@
       ],
       "fix_description": "Apply the June 2024 Patch Tuesday update.",
       "kb_patch": "KB5039211",
+      "kb_patches": {
+        "Windows 10": "KB5039211",
+        "Windows 11 22H2": "KB5039212",
+        "Windows 11 23H2": "KB5039212"
+      },
+      "patch_date": "2024-06-11",
       "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2024-30088"
     },
     {
@@ -64,6 +82,12 @@
       ],
       "fix_description": "Apply the December 2024 Patch Tuesday update.",
       "kb_patch": "KB5048652",
+      "kb_patches": {
+        "Windows 10": "KB5048652",
+        "Windows 11 23H2": "KB5048667",
+        "Windows 11 24H2": "KB5048667"
+      },
+      "patch_date": "2024-12-10",
       "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2024-49138"
     },
     {
@@ -80,6 +104,12 @@
       ],
       "fix_description": "Apply the January 2025 Patch Tuesday update. Read emails in plain text as a workaround.",
       "kb_patch": "KB5049981",
+      "kb_patches": {
+        "Windows 10": "KB5049981",
+        "Windows 11 23H2": "KB5050021",
+        "Windows 11 24H2": "KB5050009"
+      },
+      "patch_date": "2025-01-14",
       "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2025-21298"
     },
     {
@@ -96,6 +126,12 @@
       ],
       "fix_description": "Apply the February 2025 Patch Tuesday update.",
       "kb_patch": "KB5051974",
+      "kb_patches": {
+        "Windows 10": "KB5051974",
+        "Windows 11 23H2": "KB5051987",
+        "Windows 11 24H2": "KB5051987"
+      },
+      "patch_date": "2025-02-11",
       "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2025-21391"
     },
     {
@@ -207,6 +243,12 @@
       ],
       "fix_description": "Apply the August 2024 Patch Tuesday security update. Disable IPv6 as a temporary mitigation if patching is not immediately possible.",
       "kb_patch": "KB5041585",
+      "kb_patches": {
+        "Windows 10": "KB5041585",
+        "Windows 11 22H2": "KB5041585",
+        "Windows 11 23H2": "KB5041587"
+      },
+      "patch_date": "2024-08-13",
       "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2024-38063"
     },
     {
@@ -223,6 +265,12 @@
       ],
       "fix_description": "Apply the August 2024 security update from Microsoft.",
       "kb_patch": "KB5041585",
+      "kb_patches": {
+        "Windows 10": "KB5041585",
+        "Windows 11 22H2": "KB5041585",
+        "Windows 11 23H2": "KB5041587"
+      },
+      "patch_date": "2024-08-13",
       "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2024-38178"
     },
     {
@@ -239,6 +287,12 @@
       ],
       "fix_description": "Apply the August 2024 security update.",
       "kb_patch": "KB5041585",
+      "kb_patches": {
+        "Windows 10": "KB5041585",
+        "Windows 11 22H2": "KB5041585",
+        "Windows 11 23H2": "KB5041587"
+      },
+      "patch_date": "2024-08-13",
       "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2024-38193"
     },
     {
@@ -255,6 +309,12 @@
       ],
       "fix_description": "Apply the August 2024 Patch Tuesday update.",
       "kb_patch": "KB5041585",
+      "kb_patches": {
+        "Windows 10": "KB5041585",
+        "Windows 11 22H2": "KB5041585",
+        "Windows 11 23H2": "KB5041587"
+      },
+      "patch_date": "2024-08-13",
       "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2024-38106"
     },
     {
@@ -267,6 +327,7 @@
       ],
       "fix_description": "Install the September 2024 Servicing Stack Update (KB5043936) and then the September 2024 security update.",
       "kb_patch": "KB5043083",
+      "patch_date": "2024-09-10",
       "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2024-43491"
     },
     {
@@ -283,6 +344,12 @@
       ],
       "fix_description": "Apply the October 2024 Patch Tuesday update. Microsoft now prevents untrusted MSC files from being opened.",
       "kb_patch": "KB5044273",
+      "kb_patches": {
+        "Windows 10": "KB5044273",
+        "Windows 11 22H2": "KB5044285",
+        "Windows 11 23H2": "KB5044285"
+      },
+      "patch_date": "2024-10-08",
       "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2024-43572"
     },
     {
@@ -299,6 +366,12 @@
       ],
       "fix_description": "Apply the October 2024 security update.",
       "kb_patch": "KB5044273",
+      "kb_patches": {
+        "Windows 10": "KB5044273",
+        "Windows 11 22H2": "KB5044285",
+        "Windows 11 23H2": "KB5044285"
+      },
+      "patch_date": "2024-10-08",
       "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2024-43573"
     },
     {
@@ -315,6 +388,11 @@
       ],
       "fix_description": "Apply the November 2024 Patch Tuesday update.",
       "kb_patch": "KB5044284",
+      "kb_patches": {
+        "Windows 10": "KB5044284",
+        "Windows 11 23H2": "KB5044285"
+      },
+      "patch_date": "2024-11-12",
       "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2024-49039"
     },
     {
@@ -331,6 +409,12 @@
       ],
       "fix_description": "Apply the June 2024 Patch Tuesday security update.",
       "kb_patch": "KB5039211",
+      "kb_patches": {
+        "Windows 10": "KB5039211",
+        "Windows 11 22H2": "KB5039212",
+        "Windows 11 23H2": "KB5039212"
+      },
+      "patch_date": "2024-06-11",
       "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2024-30078"
     },
     {
@@ -346,6 +430,12 @@
       ],
       "fix_description": "Apply the February 2024 Patch Tuesday update.",
       "kb_patch": "KB5034763",
+      "kb_patches": {
+        "Windows 10": "KB5034763",
+        "Windows 11 22H2": "KB5034765",
+        "Windows 11 23H2": "KB5034765"
+      },
+      "patch_date": "2024-02-13",
       "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2024-21338"
     },
     {
@@ -362,6 +452,12 @@
       ],
       "fix_description": "Apply the March 2024 security update.",
       "kb_patch": "KB5035845",
+      "kb_patches": {
+        "Windows 10": "KB5035845",
+        "Windows 11 22H2": "KB5035853",
+        "Windows 11 23H2": "KB5035853"
+      },
+      "patch_date": "2024-03-12",
       "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2024-26169"
     },
     {
@@ -378,6 +474,12 @@
       ],
       "fix_description": "Apply the June 2024 Patch Tuesday update. Disable MSMQ service if not required.",
       "kb_patch": "KB5039211",
+      "kb_patches": {
+        "Windows 10": "KB5039211",
+        "Windows 11 22H2": "KB5039212",
+        "Windows 11 23H2": "KB5039212"
+      },
+      "patch_date": "2024-06-11",
       "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2024-30080"
     },
     {
@@ -394,6 +496,12 @@
       ],
       "fix_description": "Apply the January 2025 Patch Tuesday update. Restrict RDP access via firewall rules.",
       "kb_patch": "KB5049981",
+      "kb_patches": {
+        "Windows 10": "KB5049981",
+        "Windows 11 23H2": "KB5050021",
+        "Windows 11 24H2": "KB5050009"
+      },
+      "patch_date": "2025-01-14",
       "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2025-21309"
     },
     {
@@ -411,6 +519,12 @@
       ],
       "fix_description": "Apply the January 2025 security update. Disable NTLMv1 and enforce NTLMv2 or Kerberos.",
       "kb_patch": "KB5049981",
+      "kb_patches": {
+        "Windows 10": "KB5049981",
+        "Windows 11 23H2": "KB5050021",
+        "Windows 11 24H2": "KB5050009"
+      },
+      "patch_date": "2025-01-14",
       "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2025-21311"
     },
     {
@@ -440,7 +554,13 @@
         "Windows Server 2025"
       ],
       "fix_description": "Apply the February 2025 Patch Tuesday update.",
-      "kb_patch": "KB5051987",
+      "kb_patch": "KB5051974",
+      "kb_patches": {
+        "Windows 10": "KB5051974",
+        "Windows 11 23H2": "KB5051987",
+        "Windows 11 24H2": "KB5051987"
+      },
+      "patch_date": "2025-02-11",
       "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2025-21418"
     },
     {
@@ -457,7 +577,13 @@
         "Windows Server 2025"
       ],
       "fix_description": "Apply the February 2025 security update.",
-      "kb_patch": "KB5051987",
+      "kb_patch": "KB5051974",
+      "kb_patches": {
+        "Windows 10": "KB5051974",
+        "Windows 11 23H2": "KB5051987",
+        "Windows 11 24H2": "KB5051987"
+      },
+      "patch_date": "2025-02-11",
       "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2025-21376"
     },
     {
@@ -475,6 +601,12 @@
       ],
       "fix_description": "Apply the March 2025 Patch Tuesday update.",
       "kb_patch": "KB5053598",
+      "kb_patches": {
+        "Windows 10": "KB5053598",
+        "Windows 11 23H2": "KB5053602",
+        "Windows 11 24H2": "KB5053598"
+      },
+      "patch_date": "2025-03-11",
       "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2025-24985"
     },
     {
@@ -489,6 +621,12 @@
       ],
       "fix_description": "Apply the March 2025 Patch Tuesday update.",
       "kb_patch": "KB5053598",
+      "kb_patches": {
+        "Windows 10": "KB5053598",
+        "Windows 11 23H2": "KB5053602",
+        "Windows 11 24H2": "KB5053598"
+      },
+      "patch_date": "2025-03-11",
       "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2025-24983"
     },
     {
@@ -506,6 +644,12 @@
       ],
       "fix_description": "Apply the March 2025 security update.",
       "kb_patch": "KB5053598",
+      "kb_patches": {
+        "Windows 10": "KB5053598",
+        "Windows 11 23H2": "KB5053602",
+        "Windows 11 24H2": "KB5053598"
+      },
+      "patch_date": "2025-03-11",
       "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2025-24984"
     },
     {
@@ -523,6 +667,12 @@
       ],
       "fix_description": "Apply the March 2025 Patch Tuesday update.",
       "kb_patch": "KB5053598",
+      "kb_patches": {
+        "Windows 10": "KB5053598",
+        "Windows 11 23H2": "KB5053602",
+        "Windows 11 24H2": "KB5053598"
+      },
+      "patch_date": "2025-03-11",
       "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2025-24991"
     },
     {
@@ -540,6 +690,12 @@
       ],
       "fix_description": "Apply the March 2025 security update. Exercise caution when mounting VHD files from untrusted sources.",
       "kb_patch": "KB5053598",
+      "kb_patches": {
+        "Windows 10": "KB5053598",
+        "Windows 11 23H2": "KB5053602",
+        "Windows 11 24H2": "KB5053598"
+      },
+      "patch_date": "2025-03-11",
       "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2025-24993"
     },
     {
@@ -557,6 +713,12 @@
       ],
       "fix_description": "Apply the March 2025 Patch Tuesday update.",
       "kb_patch": "KB5053598",
+      "kb_patches": {
+        "Windows 10": "KB5053598",
+        "Windows 11 23H2": "KB5053602",
+        "Windows 11 24H2": "KB5053598"
+      },
+      "patch_date": "2025-03-11",
       "reference_url": "https://msrc.microsoft.com/update-guide/vulnerability/CVE-2025-26633"
     }
   ]
