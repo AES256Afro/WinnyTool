@@ -597,6 +597,65 @@ def _get_installed_kbs() -> set:
     return kbs
 
 
+def _get_last_update_date():
+    """Get the date of the most recent installed Windows update.
+
+    Returns a datetime.date or None.
+    """
+    from datetime import datetime as _dt
+    try:
+        result = subprocess.run(
+            ["powershell", "-NoProfile", "-Command",
+             "Get-HotFix | Sort-Object InstalledOn -Descending | "
+             "Select-Object -First 1 -ExpandProperty InstalledOn"],
+            capture_output=True, text=True, timeout=30,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        )
+        if result.returncode == 0 and result.stdout.strip():
+            date_str = result.stdout.strip().split()[0]
+            # Try common formats
+            for fmt in ("%m/%d/%Y", "%Y-%m-%d", "%d/%m/%Y", "%m-%d-%Y"):
+                try:
+                    return _dt.strptime(date_str, fmt).date()
+                except ValueError:
+                    continue
+    except Exception as exc:
+        logger.debug("_get_last_update_date failed: %s", exc)
+    return None
+
+
+# Map fix_description month references to approximate patch dates
+_PATCH_MONTH_MAP = {
+    "january": 1, "february": 2, "march": 3, "april": 4,
+    "may": 5, "june": 6, "july": 7, "august": 8,
+    "september": 9, "october": 10, "november": 11, "december": 12,
+}
+
+
+def _extract_patch_date(fix_description: str):
+    """Try to extract a (year, month) from fix_description like 'Apply the March 2025 Patch Tuesday update.'
+
+    Returns a datetime.date (set to last day of that month) or None.
+    """
+    from datetime import date as _date
+    if not fix_description:
+        return None
+    desc_lower = fix_description.lower()
+    for month_name, month_num in _PATCH_MONTH_MAP.items():
+        if month_name in desc_lower:
+            # Look for a 4-digit year nearby
+            match = re.search(r"(\d{4})", fix_description)
+            if match:
+                year = int(match.group(1))
+                if 2020 <= year <= 2030:
+                    # Use the 15th of the month as the patch date
+                    try:
+                        return _date(year, month_num, 15)
+                    except ValueError:
+                        pass
+    return None
+
+
 # ---------------------------------------------------------------------------
 # Matching logic
 # ---------------------------------------------------------------------------
@@ -673,6 +732,11 @@ def _make_fix_action(reference_url: str, kb_patch: Optional[str] = None, local_f
         catalog_url = f"https://www.catalog.update.microsoft.com/Search.aspx?q={kb_patch}"
         result["view"] = {"label": "View Advisory", "command": catalog_url}
 
+    # Download KB button - direct link to Microsoft Update Catalog
+    if kb_patch:
+        catalog_url = f"https://www.catalog.update.microsoft.com/Search.aspx?q={kb_patch}"
+        result["download"] = {"label": f"Download {kb_patch}", "command": catalog_url}
+
     # Apply fix button - local remediation
     if local_fix:
         fix_type = local_fix.get("type", "")
@@ -687,7 +751,7 @@ def _make_fix_action(reference_url: str, kb_patch: Optional[str] = None, local_f
     elif kb_patch:
         # Default: try to install via Windows Update
         result["apply"] = {
-            "label": "Apply Fix",
+            "label": "Open Windows Update",
             "type": "windows_update",
             "command": 'powershell -NoProfile -Command "Start-Process ms-settings:windowsupdate-action"',
             "description": f"Open Windows Update to install {kb_patch}",
@@ -726,6 +790,9 @@ def scan_cves(db_path: str = _DEFAULT_DB_PATH) -> List[Dict[str, Any]]:
     installed_kbs = _get_installed_kbs()
     logger.info("Found %d installed KBs.", len(installed_kbs))
 
+    last_update_date = _get_last_update_date()
+    logger.info("Last Windows update date: %s", last_update_date)
+
     results: List[Dict[str, Any]] = []
 
     for entry in cve_entries:
@@ -745,6 +812,17 @@ def scan_cves(db_path: str = _DEFAULT_DB_PATH) -> List[Dict[str, Any]]:
         # Step 3: If there is a KB patch, check if it is already installed
         if kb_patch and kb_patch.upper() in installed_kbs:
             logger.debug("CVE %s mitigated by installed patch %s", cve_id, kb_patch)
+            continue
+
+        # Step 4: Check if a cumulative update newer than the CVE patch date
+        # is installed (cumulative updates supersede individual KBs)
+        fix_desc = entry.get("fix_description", "")
+        patch_date = _extract_patch_date(fix_desc)
+        if patch_date and last_update_date and last_update_date >= patch_date:
+            logger.debug(
+                "CVE %s likely mitigated: last update %s >= patch date %s",
+                cve_id, last_update_date, patch_date,
+            )
             continue
 
         # Build the fix description
