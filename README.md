@@ -2,7 +2,7 @@
 
 A Windows system diagnostic and optimization tool with a dark-themed GUI. WinnyTool scans for vulnerabilities, analyzes BSODs, detects performance bottlenecks, and provides one-click fixes.
 
-![Version](https://img.shields.io/badge/Version-1.2.0-orange)
+![Version](https://img.shields.io/badge/Version-1.3.0-orange)
 ![Python](https://img.shields.io/badge/Python-3.10+-blue)
 ![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11-0078D6)
 ![License](https://img.shields.io/badge/License-GPL%20v3-green)
@@ -66,10 +66,40 @@ Each setting shows:
 - Pending update and reboot detection
 - OS build EOL checking
 
+### Router & Network Security (NEW)
+Inspired by [RouterSecurity.org](https://routersecurity.org), scans your local network for weak points:
+
+- **DNS Security** - Checks for secure DNS (Cloudflare/Google/Quad9), DNS-over-HTTPS status, DNS leak detection
+- **Port Scanning** - Scans 13 dangerous ports on your default gateway (Telnet, RDP, SNMP, UPnP, backdoor ports, etc.)
+- **WiFi Security** - Encryption type validation (flags WEP/Open), WPS detection, signal strength
+- **Network Exposure** - RDP enabled check, SMBv1 exposure, network discovery status, firewall profile validation
+- **Privacy** - Proxy settings, hosts file tampering detection
+- Each finding includes fix suggestions and one-click remediation
+
+### Security Grade (NEW)
+OpenSCAP-style letter grading system (A+ through F) that aggregates all scan results:
+
+- Runs all 7 scan modules and calculates a weighted composite score
+- **7 scoring categories**: Windows Updates (20%), CVE Exposure (20%), System Hardening (20%), Network Security (15%), Antivirus & Defender (10%), Account Security (10%), Disk & Data (5%)
+- Large color-coded letter grade display with numeric score
+- Per-category breakdown with score bars and individual grades
+- Top 5 prioritized recommendations
+- Automatic weight redistribution when scan data is unavailable
+
+### Security Resources (NEW)
+Curated hub of 55+ security links organized by category:
+
+- **Security Tools** - Shields Up!, VirusTotal, Have I Been Pwned, Shodan, Wireshark, Nmap, Sysinternals
+- **YouTube Channels** - NetworkChuck, John Hammond, The Cyber Mentor, David Bombal, LiveOverflow, IppSec, 13Cubed
+- **CVE Databases** - NVD, MITRE, CISA KEV, MSRC, Exploit-DB
+- **Threat News** - CISA Alerts, Krebs on Security, BleepingComputer, The Hacker News, Dark Reading
+- **Reddit** - r/cybersecurity, r/netsec, r/AskNetsec, r/sysadmin, r/homelab, r/privacy
+- **Communities** - Mac Admins Slack, DFIR Discord, Blue Team Labs, TryHackMe, HackTheBox
+
 ### System Info Dashboard
 - CPU, RAM, GPU, disk drives, uptime, and antivirus at a glance
 
-### UI Scaling (NEW)
+### UI Scaling
 - **Preset modes**: Compact (80%), Normal (100%), Large (140%)
 - **Fine-tune slider**: Adjust from 80% to 200% for any display
 - Settings persist across sessions via `data/settings.json`
@@ -167,6 +197,9 @@ WinnyTool/
 │   ├── network_diag.py       # Network diagnostics
 │   ├── winupdate.py          # Windows Update status
 │   ├── sysinfo.py            # System information collection
+│   ├── router_security.py    # Router & network security scanner (16 checks)
+│   ├── grading.py            # OpenSCAP-style security grading (A+ to F)
+│   ├── resources.py          # Curated security resources hub (55+ links)
 │   ├── updater.py            # GitHub release auto-updater
 │   ├── reporter.py           # HTML/text report generation
 │   └── history.py            # SQLite scan history
@@ -191,6 +224,17 @@ This project is licensed under the GNU General Public License v3.0 - see the [LI
 ---
 
 ## Changelog
+
+### v1.3.0 (2026-03-21)
+**New Features:**
+- **Router & Network Security Scanner** - 16 checks covering DNS security (DoH, leak detection), gateway port scanning (13 dangerous ports), WiFi encryption validation, UPnP detection, RDP/SMB exposure, firewall profiles, hosts file tampering, and proxy settings
+- **Security Grading System** - OpenSCAP-style A+ through F grading with 7 weighted categories, per-category score bars, color-coded grade display, and top 5 prioritized recommendations
+- **Security Resources Hub** - 55+ curated links across 6 categories: security tools, YouTube channels, CVE databases, threat news, Reddit communities, and Slack/Discord communities
+
+**Improvements:**
+- Three new sidebar pages fully integrated with existing dark theme
+- Security Grade runs all scan modules and produces a composite weighted score
+- Router scanner uses socket-based port probing with 1-second timeouts
 
 ### v1.2.0 (2026-03-21)
 **New Features:**

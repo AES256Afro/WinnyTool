@@ -19,6 +19,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from core import sysinfo, cve_scanner, bsod_analyzer, performance
 from core import startup_mgr, disk_health, network_diag, winupdate
 from core import updater, reporter, history, hardening
+from core.router_security import scan_router_security
+from core.grading import calculate_grade, get_grade_color
+from core.resources import get_security_resources, open_resource
 
 VERSION = "1.0.0"
 APP_NAME = "WinnyTool"
@@ -339,6 +342,8 @@ class WinnyToolApp:
             ("startup", "Startup Manager"),
             ("disk", "Disk Health"),
             ("network", "Network"),
+            ("router_security", "Router Security"),
+            ("security_grade", "Security Grade"),
             ("updates", "Windows Update"),
             ("history", "Scan History"),
         ]
@@ -360,6 +365,15 @@ class WinnyToolApp:
         ttk.Separator(self.sidebar, orient="horizontal").pack(
             fill=tk.X, padx=10, pady=5
         )
+
+        resources_btn = ttk.Button(
+            self.sidebar,
+            text="  Resources",
+            style="Sidebar.TButton",
+            command=lambda: self._navigate("resources"),
+        )
+        resources_btn.pack(fill=tk.X, padx=5, pady=1)
+        self.nav_buttons["resources"] = resources_btn
 
         settings_btn = ttk.Button(
             self.sidebar,
@@ -416,6 +430,9 @@ class WinnyToolApp:
             "network": self._show_network,
             "updates": self._show_updates,
             "history": self._show_history,
+            "router_security": self._show_router_security,
+            "security_grade": self._show_security_grade,
+            "resources": self._show_resources,
             "settings": self._show_settings,
         }
         pages.get(page, self._show_dashboard)()
@@ -2030,6 +2047,435 @@ class WinnyToolApp:
 
         for result in results:
             self._create_result_card(parent, result, category)
+
+    # ===== PAGE: Router Security =====
+    def _show_router_security(self):
+        self._clear_content()
+        self._navigate_highlight("router_security")
+        scroll = self._make_scrollable(self.content_frame)
+
+        header = self._create_page_header(
+            scroll,
+            "Router & Network Security",
+            "Scan your router and local network for security issues",
+        )
+
+        scan_btn = ttk.Button(
+            header,
+            text="Run Router Security Scan",
+            style="Accent.TButton",
+            command=lambda: self._run_router_security_scan(scroll),
+        )
+        scan_btn.pack(anchor="w", pady=(10, 0))
+
+        # Results container
+        self._router_results_frame = ttk.Frame(scroll, style="Dark.TFrame")
+        self._router_results_frame.pack(fill=tk.X)
+
+        if "router_security" in self.scan_results:
+            self._display_router_security_results(self.scan_results["router_security"])
+
+    def _run_router_security_scan(self, parent):
+        """Run router security scan in background."""
+        def on_results(results):
+            self.scan_results["router_security"] = results
+            try:
+                history.save_scan("router_security", results)
+            except Exception:
+                pass
+            self._display_router_security_results(results)
+
+        self._run_scan_threaded(
+            scan_router_security, "Router Security", on_results
+        )
+
+    def _display_router_security_results(self, results):
+        """Display router security scan results as color-coded cards."""
+        for w in self._router_results_frame.winfo_children():
+            w.destroy()
+
+        if not results:
+            ttk.Label(
+                self._router_results_frame,
+                text="No results. Run a scan first.",
+                style="Subtitle.TLabel",
+            ).pack(padx=20, pady=20)
+            return
+
+        status_colors = {
+            "Pass": "#00c853",
+            "Warning": "#ffd600",
+            "Fail": "#ff1744",
+            "Info": "#00bcd4",
+        }
+
+        for item in results:
+            card = ttk.Frame(self._router_results_frame, style="Card.TFrame")
+            card.pack(fill=tk.X, padx=20, pady=4)
+
+            inner = ttk.Frame(card, style="Card.TFrame")
+            inner.pack(fill=tk.X, padx=15, pady=10)
+
+            # Top row: status badge + check name
+            top = ttk.Frame(inner, style="Card.TFrame")
+            top.pack(fill=tk.X)
+
+            status = item.get("status", "Info")
+            color = status_colors.get(status, "#00bcd4")
+
+            status_lbl = ttk.Label(top, text=f"[{status}]", style="Card.TLabel")
+            status_lbl.pack(side=tk.LEFT, padx=(0, 8))
+            status_lbl.configure(foreground=color, font=("Segoe UI", 10, "bold"))
+
+            ttk.Label(
+                top, text=item.get("check", ""), style="CardTitle.TLabel"
+            ).pack(side=tk.LEFT)
+
+            # Details
+            details = item.get("details", "")
+            if details:
+                ttk.Label(
+                    inner, text=details, style="Card.TLabel",
+                    wraplength=700,
+                ).pack(anchor="w", pady=(5, 0))
+
+            # Fix suggestion
+            fix_suggestion = item.get("fix_suggestion", "")
+            if fix_suggestion:
+                fix_lbl = ttk.Label(
+                    inner, text=f"Fix: {fix_suggestion}",
+                    style="Card.TLabel", wraplength=700,
+                )
+                fix_lbl.pack(anchor="w", pady=(5, 0))
+                fix_lbl.configure(foreground=COLORS["text_secondary"])
+
+            # Apply Fix button if fix_action exists with a command
+            fix_action = item.get("fix_action")
+            if fix_action and fix_action.get("command"):
+                fix_btn = ttk.Button(
+                    inner,
+                    text=f"Apply Fix: {fix_action.get('label', 'Fix')}",
+                    style="Accent.TButton",
+                    command=lambda cmd=fix_action["command"]: self._apply_router_fix(cmd),
+                )
+                fix_btn.pack(anchor="w", pady=(8, 0))
+
+    def _apply_router_fix(self, command):
+        """Apply a router security fix command in a background thread."""
+        import subprocess
+
+        def do_fix():
+            try:
+                subprocess.run(command, shell=True, check=True, timeout=30)
+                self.root.after(
+                    0, lambda: self.status_var.set("Fix applied successfully")
+                )
+                self.root.after(
+                    0,
+                    lambda: messagebox.showinfo(
+                        "Fix Applied", "The fix was applied. Re-run the scan to verify."
+                    ),
+                )
+            except Exception as e:
+                self.root.after(
+                    0,
+                    lambda: messagebox.showerror(
+                        "Fix Failed", f"Failed to apply fix:\n{str(e)}"
+                    ),
+                )
+
+        threading.Thread(target=do_fix, daemon=True).start()
+
+    # ===== PAGE: Security Grade =====
+    def _show_security_grade(self):
+        self._clear_content()
+        self._navigate_highlight("security_grade")
+        scroll = self._make_scrollable(self.content_frame)
+
+        header = self._create_page_header(
+            scroll,
+            "Security Grade",
+            "Run all scans and calculate your overall security grade",
+        )
+
+        scan_btn = ttk.Button(
+            header,
+            text="Calculate Security Grade",
+            style="Accent.TButton",
+            command=lambda: self._run_security_grade(scroll),
+        )
+        scan_btn.pack(anchor="w", pady=(10, 0))
+
+        # Results container
+        self._grade_results_frame = ttk.Frame(scroll, style="Dark.TFrame")
+        self._grade_results_frame.pack(fill=tk.X)
+
+    def _run_security_grade(self, parent):
+        """Run all scans and calculate security grade."""
+        self.status_var.set("Running all scans for security grade...")
+        self.root.update()
+
+        # Clear previous results
+        for w in self._grade_results_frame.winfo_children():
+            w.destroy()
+
+        progress_label = ttk.Label(
+            self._grade_results_frame,
+            text="Running all scans... This may take a few minutes.",
+            style="Subtitle.TLabel",
+        )
+        progress_label.pack(padx=20, pady=20)
+
+        def do_grade():
+            scan_data = {}
+            scans = [
+                ("CVE Scanner", cve_scanner.scan_cves, "cve_results"),
+                ("System Hardening", hardening.scan_hardening, "hardening_results"),
+                ("Performance", performance.scan_performance, "performance_results"),
+                ("Network", network_diag.scan_network, "network_results"),
+                ("Windows Update", winupdate.scan_updates, "update_results"),
+                ("Disk Health", disk_health.scan_disk_health, "disk_results"),
+                ("Router Security", scan_router_security, "router_results"),
+            ]
+
+            for name, func, key in scans:
+                self.root.after(
+                    0,
+                    lambda n=name: progress_label.configure(
+                        text=f"Scanning: {n}..."
+                    ),
+                )
+                try:
+                    scan_data[key] = func()
+                except Exception:
+                    scan_data[key] = []
+
+            self.root.after(
+                0, lambda: progress_label.configure(text="Calculating grade...")
+            )
+
+            try:
+                grade_result = calculate_grade(scan_data)
+            except Exception as e:
+                self.root.after(
+                    0,
+                    lambda: messagebox.showerror(
+                        "Grade Error", f"Failed to calculate grade:\n{str(e)}"
+                    ),
+                )
+                self.root.after(0, lambda: self.status_var.set("Grade calculation failed"))
+                return
+
+            self.root.after(0, lambda: self._display_security_grade(grade_result))
+            self.root.after(0, lambda: self.status_var.set("Security grade calculated"))
+
+        threading.Thread(target=do_grade, daemon=True).start()
+
+    def _display_security_grade(self, grade_result):
+        """Display the security grade results."""
+        for w in self._grade_results_frame.winfo_children():
+            w.destroy()
+
+        # Overall grade card
+        grade_card = ttk.Frame(self._grade_results_frame, style="Card.TFrame")
+        grade_card.pack(fill=tk.X, padx=20, pady=10)
+
+        grade_inner = ttk.Frame(grade_card, style="Card.TFrame")
+        grade_inner.pack(fill=tk.X, padx=15, pady=15)
+
+        overall_grade = grade_result.get("overall_grade", "?")
+        overall_score = grade_result.get("overall_score", 0)
+        overall_color = grade_result.get("overall_color", COLORS["text_primary"])
+
+        # Large letter grade
+        grade_lbl = ttk.Label(
+            grade_inner,
+            text=overall_grade,
+            style="Card.TLabel",
+        )
+        grade_lbl.pack(anchor="w")
+        grade_lbl.configure(foreground=overall_color, font=("Segoe UI", 48, "bold"))
+
+        # Numeric score
+        score_lbl = ttk.Label(
+            grade_inner,
+            text=f"Overall Score: {overall_score}/100",
+            style="CardTitle.TLabel",
+        )
+        score_lbl.pack(anchor="w", pady=(5, 0))
+
+        # Category breakdown
+        categories = grade_result.get("categories", {})
+        if categories:
+            cat_header = ttk.Label(
+                self._grade_results_frame,
+                text="Category Breakdown",
+                style="Title.TLabel",
+            )
+            cat_header.pack(anchor="w", padx=20, pady=(15, 5))
+
+            for cat_name, cat_data in categories.items():
+                cat_card = ttk.Frame(self._grade_results_frame, style="Card.TFrame")
+                cat_card.pack(fill=tk.X, padx=20, pady=3)
+
+                cat_inner = ttk.Frame(cat_card, style="Card.TFrame")
+                cat_inner.pack(fill=tk.X, padx=15, pady=8)
+
+                cat_row = ttk.Frame(cat_inner, style="Card.TFrame")
+                cat_row.pack(fill=tk.X)
+
+                # Category name
+                ttk.Label(
+                    cat_row, text=cat_name, style="CardTitle.TLabel",
+                ).pack(side=tk.LEFT)
+
+                # Grade letter on the right
+                cat_grade = cat_data.get("grade", "?")
+                cat_color = cat_data.get("color", COLORS["text_primary"])
+                cat_grade_lbl = ttk.Label(
+                    cat_row, text=cat_grade, style="Card.TLabel",
+                )
+                cat_grade_lbl.pack(side=tk.RIGHT, padx=(8, 0))
+                cat_grade_lbl.configure(
+                    foreground=cat_color, font=("Segoe UI", 14, "bold")
+                )
+
+                # Finding count on the right
+                findings = cat_data.get("findings", 0)
+                ttk.Label(
+                    cat_row,
+                    text=f"{findings} finding(s)",
+                    style="Card.TLabel",
+                    foreground=COLORS["text_secondary"],
+                ).pack(side=tk.RIGHT, padx=(0, 10))
+
+                # Score bar
+                cat_score = cat_data.get("score", 0)
+                bar_frame = ttk.Frame(cat_inner, style="Card.TFrame")
+                bar_frame.pack(fill=tk.X, pady=(5, 0))
+
+                bar_canvas = tk.Canvas(
+                    bar_frame, height=12, bg=COLORS["bg_dark"],
+                    highlightthickness=0,
+                )
+                bar_canvas.pack(fill=tk.X)
+
+                def draw_bar(canvas, score, color, event=None):
+                    canvas.delete("all")
+                    w = canvas.winfo_width()
+                    if w <= 1:
+                        w = 400
+                    fill_w = max(0, int(w * score / 100))
+                    canvas.create_rectangle(0, 0, w, 12, fill=COLORS["bg_dark"], outline="")
+                    canvas.create_rectangle(0, 0, fill_w, 12, fill=color, outline="")
+
+                bar_canvas.bind(
+                    "<Configure>",
+                    lambda e, c=bar_canvas, s=cat_score, cl=cat_color: draw_bar(c, s, cl, e),
+                )
+
+        # Top 5 recommendations
+        recs = grade_result.get("top_recommendations", [])
+        if recs:
+            rec_header = ttk.Label(
+                self._grade_results_frame,
+                text="Top Recommendations",
+                style="Title.TLabel",
+            )
+            rec_header.pack(anchor="w", padx=20, pady=(15, 5))
+
+            rec_card = ttk.Frame(self._grade_results_frame, style="Card.TFrame")
+            rec_card.pack(fill=tk.X, padx=20, pady=4)
+
+            rec_inner = ttk.Frame(rec_card, style="Card.TFrame")
+            rec_inner.pack(fill=tk.X, padx=15, pady=10)
+
+            for i, rec in enumerate(recs[:5], 1):
+                rec_text = rec if isinstance(rec, str) else rec.get("text", str(rec))
+                ttk.Label(
+                    rec_inner,
+                    text=f"{i}. {rec_text}",
+                    style="Card.TLabel",
+                    wraplength=700,
+                ).pack(anchor="w", pady=2)
+
+        # Summary
+        summary = grade_result.get("summary", "")
+        if summary:
+            summary_header = ttk.Label(
+                self._grade_results_frame,
+                text="Summary",
+                style="Title.TLabel",
+            )
+            summary_header.pack(anchor="w", padx=20, pady=(15, 5))
+
+            summary_card = ttk.Frame(self._grade_results_frame, style="Card.TFrame")
+            summary_card.pack(fill=tk.X, padx=20, pady=4)
+
+            summary_inner = ttk.Frame(summary_card, style="Card.TFrame")
+            summary_inner.pack(fill=tk.X, padx=15, pady=10)
+
+            ttk.Label(
+                summary_inner,
+                text=summary,
+                style="Card.TLabel",
+                wraplength=700,
+            ).pack(anchor="w")
+
+    # ===== PAGE: Resources =====
+    def _show_resources(self):
+        self._clear_content()
+        self._navigate_highlight("resources")
+        scroll = self._make_scrollable(self.content_frame)
+
+        self._create_page_header(
+            scroll,
+            "Security Resources",
+            "Curated links to security tools, channels, and communities",
+        )
+
+        resources = get_security_resources()
+
+        for category, items in resources.items():
+            # Category header
+            cat_lbl = ttk.Label(
+                scroll,
+                text=category,
+                style="Title.TLabel",
+            )
+            cat_lbl.pack(anchor="w", padx=20, pady=(15, 5))
+            cat_lbl.configure(foreground=COLORS["accent"])
+
+            for resource in items:
+                res_card = ttk.Frame(scroll, style="Card.TFrame")
+                res_card.pack(fill=tk.X, padx=20, pady=2)
+
+                res_inner = ttk.Frame(res_card, style="Card.TFrame")
+                res_inner.pack(fill=tk.X, padx=15, pady=8)
+
+                # Resource name as clickable label
+                name_lbl = ttk.Label(
+                    res_inner,
+                    text=resource.get("name", ""),
+                    style="CardTitle.TLabel",
+                    cursor="hand2",
+                )
+                name_lbl.pack(anchor="w")
+                name_lbl.configure(foreground=COLORS["info"])
+                name_lbl.bind(
+                    "<Button-1>",
+                    lambda e, url=resource.get("url", ""): open_resource(url),
+                )
+
+                # Description
+                desc = resource.get("description", "")
+                if desc:
+                    ttk.Label(
+                        res_inner,
+                        text=desc,
+                        style="Card.TLabel",
+                        foreground=COLORS["text_secondary"],
+                    ).pack(anchor="w", pady=(2, 0))
 
     # ===== PAGE: Settings =====
     def _show_settings(self):
