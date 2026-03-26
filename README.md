@@ -33,14 +33,14 @@ python winnytool.py
 ## Features
 
 ### Dashboard
-System information at a glance — OS, CPU, RAM, GPU, disk drives, uptime, and antivirus status. Quick-action buttons launch any scan with a single click.
+Your system at a glance. Displays OS version, CPU model, RAM usage, GPU, computer name, and uptime in a clean card layout. Eight quick-action buttons let you launch any scan — CVE, BSOD, Performance, Disk Health, Network, Startup, or a full system scan — without navigating away.
 
 ![Dashboard](screenshots/dashboard.png)
 
 ---
 
 ### CVE Scanner
-Scans your system against a local database of **36 real Windows CVEs** (2024-2026) focused on actively exploited vulnerabilities. The scanner cross-references your installed Windows updates and OS build date to avoid false positives — if your cumulative update already covers a CVE, it won't flag it.
+Scans your system against a local database of known Windows CVEs (2024-2026) focused on actively exploited vulnerabilities. The scanner cross-references your installed Windows updates and OS build date to avoid false positives — if your cumulative update already covers a CVE, it won't flag it.
 
 Each finding shows:
 - **Severity badge** (Critical / High / Medium / Low)
@@ -50,7 +50,7 @@ Each finding shows:
 
 ![CVE Scanner](screenshots/cve_scanner.png)
 
-**Expand your database** — import from NVD (NIST), CISA KEV feed, custom JSON files, or add entries manually through the GUI. All imports are deduplicated automatically.
+**Expand your database** — fetch from NVD (NIST), import from the CISA KEV feed, drag-and-drop JSON files or folders, or add entries manually through the GUI. Supports the CVE-List repository format. All imports are deduplicated automatically.
 
 ---
 
@@ -90,10 +90,11 @@ Every setting shows its **current status**, **pros**, **cons**, and a one-click 
 ---
 
 ### BSOD Analyzer
-Reads the last 10 Blue Screen of Death events from Windows Event Log, maps **33 known stop codes** to human-readable names, and provides targeted fix suggestions.
+Pulls the last 10 Blue Screen of Death events from the Windows Event Log and maps **33 known stop codes** (like `KERNEL_POWER`, `DRIVER_IRQL_NOT_LESS_OR_EQUAL`, `CRITICAL_PROCESS_DIED`) to human-readable names with targeted fix suggestions for each.
 
+- Shows timestamps, bug check parameters, and severity levels
 - Correlates minidump files from `C:\Windows\Minidump\`
-- Fix buttons: Run SFC, DISM Repair, Check Disk, Update Drivers, Memory Diagnostic
+- One-click fix buttons: Open Event Viewer, Open Device Manager, Run SFC Scan, Run DISM Repair, Open Power Options
 
 ![BSOD Analyzer](screenshots/bsod_analyzer.png)
 
@@ -113,38 +114,63 @@ Inspired by [RouterSecurity.org](https://routersecurity.org), scans your local n
 ---
 
 ### Performance Optimizer
-13 system checks that flag settings slowing down your PC:
+Runs 13 system checks to detect settings that are slowing your PC down. Each finding is rated by impact level (High / Medium / Low) with a one-click fix button.
 
-Power plan, visual effects, background apps, search indexing, Superfetch, page file, temp files, Game Mode, transparency effects, tips/suggestions, and more. Each finding rated by impact (High/Medium/Low).
+Checks include: startup program count, visual effects mode, background apps, search indexing, SysMain/Superfetch on SSD, page file configuration, temp file accumulation, Game Mode, transparency effects, tips and suggestions, and more.
 
 ![Performance](screenshots/performance.png)
 
 ---
 
 ### Startup Manager
-Scans registry Run/RunOnce keys, Startup folder, and scheduled tasks. Shows impact estimation based on known heavy applications. Disable or enable startup items directly from the GUI.
+Scans registry Run/RunOnce keys (HKCU and HKLM), the Startup folder, and scheduled tasks. Each item shows its command path, registry location, and an impact rating based on known resource-heavy applications. Disable or re-enable any startup item directly from the GUI.
 
 ![Startup Manager](screenshots/startup_manager.png)
 
 ---
 
 ### Disk Health
-SMART status, SSD TRIM status, HDD fragmentation analysis, temp file cleanup estimation, and large file finder.
+Comprehensive disk diagnostics across all connected drives. Reports disk space usage per partition, SMART health status for each physical drive (HDD and SSD), SSD TRIM enablement, HDD fragmentation levels, and total reclaimable space from temp files, browser caches, Windows Update cache, and the Recycle Bin.
+
+![Disk Health](screenshots/disk_health.png)
 
 ---
 
 ### Network Diagnostics
-DNS configuration, latency testing, firewall status, proxy settings, hosts file inspection, TCP auto-tuning.
+Tests your network stack for misconfigurations and connectivity issues. Checks DNS server configuration (identifies secure providers like Cloudflare and AdGuard), measures latency to multiple endpoints, verifies Windows Firewall status across all profiles, detects proxy settings, inspects the hosts file for suspicious entries, and validates TCP auto-tuning settings.
+
+![Network Diagnostics](screenshots/network.png)
 
 ---
 
 ### Windows Update Status
-Patch history, last update date tracking, pending update detection, OS build EOL checking.
+Checks your patch posture. Displays current OS build version, last update install date, Windows Update service status, pending updates with KB numbers, feature update status, and recent update history. Includes a one-click button to install pending updates.
+
+![Windows Update](screenshots/windows_update.png)
+
+---
+
+### Scan History
+Every scan is logged to a local SQLite database with timestamps and finding counts by severity. View previous results across all scan types — Updates, Router Security, Network, Disk, Performance, BSOD, Hardening, Startup, and CVE — to track your system's health over time.
+
+![Scan History](screenshots/scan_history.png)
+
+---
+
+### Security Resources
+A curated hub of 55+ security links organized by category, all clickable directly from the app:
+- **Security Tools** — Shields Up!, VirusTotal, Have I Been Pwned, Shodan, CyberChef, Wireshark, Nmap, Sysinternals Suite, Autoruns, Process Explorer
+- **YouTube Channels** — NetworkChuck, John Hammond, The Cyber Mentor, David Bombal, LiveOverflow, IppSec, 13Cubed, Black Hills InfoSec
+- **CVE Databases** — NVD (NIST), MITRE CVE, CISA KEV, Microsoft Security Update Guide, Exploit-DB, VulnDB
+- **Threat News** — CISA Alerts, Krebs on Security, BleepingComputer, The Hacker News, Dark Reading, SecurityWeek, Ars Technica Security
+- **Communities** — r/cybersecurity, r/netsec, r/AskNetsec, r/sysadmin, r/homelab, r/privacy, r/malware, Mac Admins Slack, DFIR Discord, Blue Team Labs, TryHackMe, HackTheBox
+
+![Resources](screenshots/resources.png)
 
 ---
 
 ### Full System Scan
-Run all diagnostics with a single click. Results summary with export options:
+Run every diagnostic module with a single click. A progress bar tracks each scan phase (CVE, BSOD, Performance, Startup, Disk, Network, Windows Update, Hardening). Once complete, view the total findings summary and export results in multiple formats or drill into any category.
 
 | Format | Description |
 |---|---|
@@ -158,23 +184,17 @@ Run all diagnostics with a single click. Results summary with export options:
 
 ---
 
-### Security Resources
-Curated hub of 55+ security links:
-- **Tools** — Shields Up!, VirusTotal, Have I Been Pwned, Shodan, Wireshark, Sysinternals
-- **YouTube** — NetworkChuck, John Hammond, The Cyber Mentor, David Bombal, LiveOverflow
-- **CVE Databases** — NVD, MITRE, CISA KEV, MSRC, Exploit-DB
-- **News** — CISA Alerts, Krebs on Security, BleepingComputer, The Hacker News
-- **Communities** — r/cybersecurity, r/netsec, r/sysadmin, Mac Admins Slack, DFIR Discord
+### Settings & UI Scaling
+Customize the application appearance with preset scaling modes (Compact 80%, Normal 100%, Large 140%) or use the fine-tune slider for any scale up to 200%. Sidebar width adjusts proportionally. Settings persist across sessions.
 
----
-
-### UI Scaling
-Preset modes (Compact 80%, Normal 100%, Large 140%) plus a fine-tune slider up to 200%. Settings persist across sessions.
+![Settings](screenshots/settings.png)
 
 ---
 
 ### Auto-Updater
-Checks GitHub for new releases. Downloads and installs updates directly — supports `.zip` extraction, `.exe` and `.msi` launch.
+Checks the GitHub repository for new WinnyTool releases. Shows your current version and repository source. Downloads and installs updates directly — supports `.zip` extraction, `.exe` and `.msi` launch.
+
+![Check for Updates](screenshots/check_updates.png)
 
 ---
 
