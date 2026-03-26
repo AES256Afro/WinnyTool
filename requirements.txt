@@ -1,9 +1,6 @@
 # WinnyTool - Windows System Diagnostic & Optimization Tool
 # Most dependencies are Python stdlib. Only these are needed for extras:
 
-# For PyInstaller packaging (optional):
-# pyinstaller>=6.0
-
 # All core functionality uses stdlib:
 # - tkinter (GUI)
 # - sqlite3 (scan history)
@@ -11,3 +8,8 @@
 # - winreg (Windows registry)
 # - urllib.request (GitHub updates)
 # - json, os, platform, shutil, socket, datetime, html, threading
+
+# --- Optional dev dependencies (not required to run WinnyTool) ---
+# Install with: pip install pyinstaller>=6.0
+# Then build with: python build.py  OR  pyinstaller WinnyTool.spec
+pyinstaller>=6.0  # optional: only needed for building the standalone .exe
