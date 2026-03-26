@@ -1,182 +1,196 @@
 # WinnyTool
 
-A Windows system diagnostic and optimization tool with a dark-themed GUI. WinnyTool scans for vulnerabilities, analyzes BSODs, detects performance bottlenecks, and provides one-click fixes.
+**A free, open-source Windows system diagnostic, optimization, and security hardening tool.** WinnyTool gives you a complete picture of your system's health — scanning for known vulnerabilities (CVEs), analyzing Blue Screen crashes, detecting performance bottlenecks, auditing your network security, and grading your overall security posture from A+ to F. Every finding comes with one-click fix buttons so you can remediate issues without leaving the app.
 
-![Version](https://img.shields.io/badge/Version-1.4.0-orange)
+Built entirely with Python's standard library. Zero external dependencies. Zero telemetry.
+
+![Version](https://img.shields.io/badge/Version-1.5.0-orange)
 ![Python](https://img.shields.io/badge/Python-3.10+-blue)
 ![Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11-0078D6)
 ![License](https://img.shields.io/badge/License-GPL%20v3-green)
 
 ---
 
-## Features
+## Download
 
-### CVE Scanner
-- Local database of **36 real Windows CVEs** (2024-2026) focused on recent and actively exploited vulnerabilities
-- Checks installed software and OS patches against known vulnerabilities
-- **Dual action buttons** per CVE: "View CVE" links to MSRC advisory, "Apply Fix" runs the remediation locally (Windows Update, disable service, registry mitigation, etc.)
-- Links to Microsoft Security Response Center for full advisory details
-- **CVE Feed Import** - Pull new CVEs from NVD (NIST), CISA KEV, or custom JSON feeds
-- **Manual CVE Entry** - Add custom CVEs through the GUI with full metadata (severity, affected software, fix info)
-- Automatic deduplication when importing from multiple sources
+### Option 1: Windows Installer (Recommended)
+Download `WinnyTool_Setup.exe` from the [Releases](https://github.com/AES256Afro/WinnyTool/releases) page. Double-click to install — adds Start Menu shortcut, Desktop icon, and uninstaller.
 
-### System Hardening (NEW)
-Three-tier hardening profiles with full transparency on what each setting does:
+### Option 2: Portable EXE
+Download `WinnyTool.exe` from [Releases](https://github.com/AES256Afro/WinnyTool/releases). No installation required — just run it.
 
-- **Basic** (8 checks) - Safe for all users. Firewall, Defender real-time protection, UAC, SMBv1 disable, auto-updates, screen lock, guest account disable, Remote Desktop
-- **Moderate** (10 checks) - For security-conscious users. Adds LLMNR/NetBIOS disable, Credential Guard, WDigest protection, PowerShell execution policy, audit logging, autorun disable, password policies, BitLocker
-- **Aggressive** (10 checks) - Maximum security, may break some workflows. Windows Script Host disable, Office macro restrictions, LSA protection, NTLM disable, ASR rules, named pipe restrictions, cached credential limits, NTLMv2 enforcement
-
-Each setting shows:
-- Current system status (Enabled/Disabled)
-- **Pros** - Security benefits of enabling
-- **Cons** - What might break or become inconvenient
-- One-click **Apply Fix** button with confirmation
-
-### BSOD Analyzer
-- Reads the last 10 Blue Screen of Death events from Windows Event Log
-- Maps 33 known stop codes to human-readable names, common causes, and fix suggestions
-- Checks for minidump files in `C:\Windows\Minidump\`
-- Clickable fix buttons (Run SFC, DISM Repair, Check Disk, Update Drivers, etc.)
-
-### Performance Optimizer
-- 13 system checks: power plan, visual effects, background apps, search indexing, Superfetch, page file, temp files, Game Mode, transparency effects, tips/suggestions, and more
-- Flags settings that slow down your system with impact ratings (High/Medium/Low)
-
-### Startup Manager
-- Scans registry Run/RunOnce keys, Startup folder, and scheduled tasks
-- Impact estimation based on known heavy applications
-- Disable/enable startup items directly from the GUI
-
-### Disk Health
-- SMART status for all physical drives
-- TRIM status for SSDs, fragmentation analysis for HDDs
-- Temp file cleanup and reclaimable space estimation
-- Large file finder
-
-### Network Diagnostics
-- DNS configuration check with recommendations (Cloudflare, Google DNS)
-- Latency testing to multiple endpoints
-- Firewall status, proxy settings, hosts file inspection
-- TCP auto-tuning analysis
-
-### Windows Update Status
-- Patch history with last update date tracking
-- Flags systems overdue for updates (>30 days)
-- Pending update and reboot detection
-- OS build EOL checking
-
-### Router & Network Security (NEW)
-Inspired by [RouterSecurity.org](https://routersecurity.org), scans your local network for weak points:
-
-- **DNS Security** - Checks for secure DNS (Cloudflare/Google/Quad9), DNS-over-HTTPS status, DNS leak detection
-- **Port Scanning** - Scans 13 dangerous ports on your default gateway (Telnet, RDP, SNMP, UPnP, backdoor ports, etc.)
-- **WiFi Security** - Encryption type validation (flags WEP/Open), WPS detection, signal strength
-- **Network Exposure** - RDP enabled check, SMBv1 exposure, network discovery status, firewall profile validation
-- **Privacy** - Proxy settings, hosts file tampering detection
-- Each finding includes fix suggestions and one-click remediation
-
-### Security Grade (NEW)
-OpenSCAP-style letter grading system (A+ through F) that aggregates all scan results:
-
-- Runs all 7 scan modules and calculates a weighted composite score
-- **7 scoring categories**: Windows Updates (20%), CVE Exposure (20%), System Hardening (20%), Network Security (15%), Antivirus & Defender (10%), Account Security (10%), Disk & Data (5%)
-- Large color-coded letter grade display with numeric score
-- Per-category breakdown with score bars and individual grades
-- Top 5 prioritized recommendations
-- Automatic weight redistribution when scan data is unavailable
-
-### Security Resources (NEW)
-Curated hub of 55+ security links organized by category:
-
-- **Security Tools** - Shields Up!, VirusTotal, Have I Been Pwned, Shodan, Wireshark, Nmap, Sysinternals
-- **YouTube Channels** - NetworkChuck, John Hammond, The Cyber Mentor, David Bombal, LiveOverflow, IppSec, 13Cubed
-- **CVE Databases** - NVD, MITRE, CISA KEV, MSRC, Exploit-DB
-- **Threat News** - CISA Alerts, Krebs on Security, BleepingComputer, The Hacker News, Dark Reading
-- **Reddit** - r/cybersecurity, r/netsec, r/AskNetsec, r/sysadmin, r/homelab, r/privacy
-- **Communities** - Mac Admins Slack, DFIR Discord, Blue Team Labs, TryHackMe, HackTheBox
-
-### System Info Dashboard
-- CPU, RAM, GPU, disk drives, uptime, and antivirus at a glance
-
-### UI Scaling
-- **Preset modes**: Compact (80%), Normal (100%), Large (140%)
-- **Fine-tune slider**: Adjust from 80% to 200% for any display
-- Settings persist across sessions via `data/settings.json`
-- Scales all fonts, sidebar width, and widget padding proportionally
-
-### Additional Features
-- **GitHub Auto-Updater** - Checks for new releases on launch
-- **HTML Report Export** - Generate styled reports of all findings
-- **Scan History** - SQLite-backed history tracking with trend data
-- **Full Scan Mode** - Run all diagnostics with a single click
-
----
-
-## CVE Database Management
-
-WinnyTool ships with 36 built-in CVEs (2024-2026) and supports multiple ways to expand the database:
-
-### 1. NVD Feed (NIST)
-Pull CVEs from the National Vulnerability Database filtered to Windows-related entries. Requires a free NVD API key from https://nvd.nist.gov/developers/request-an-api-key.
-
-### 2. CISA KEV Feed
-Import the Known Exploited Vulnerabilities catalog - actively exploited CVEs that CISA mandates federal agencies to patch.
-
-### 3. Manual Entry
-Add custom CVEs directly through the GUI with fields for:
-- CVE ID, severity (Critical/High/Medium/Low)
-- Description and affected software/versions
-- Fix description, KB patch number, and reference URL
-
-### 4. Custom JSON Import
-Import any JSON file matching the WinnyTool schema:
-```json
-[
-  {
-    "cve_id": "CVE-2024-XXXXX",
-    "severity": "High",
-    "description": "Description here",
-    "affected_software": ["Software Name"],
-    "affected_versions": ["1.0", "2.0"],
-    "fix_description": "Update to latest version",
-    "kb_patch": "KB1234567",
-    "reference_url": "https://msrc.microsoft.com/..."
-  }
-]
-```
-
-All imports are deduplicated automatically - existing CVE IDs are skipped.
-
----
-
-## Screenshot
-
-The GUI features a dark theme with sidebar navigation. Every finding includes clickable **"Apply Fix"** buttons that confirm before executing.
-
----
-
-## Requirements
-
-- **Python 3.10+**
-- **Windows 10/11**
-- No external dependencies - uses only Python standard library (tkinter, sqlite3, subprocess, winreg, etc.)
-
----
-
-## Installation
-
+### Option 3: Run from Source
 ```bash
 git clone https://github.com/AES256Afro/WinnyTool.git
 cd WinnyTool
 python winnytool.py
 ```
 
-For full functionality, run as Administrator:
-```bash
-# Right-click Command Prompt -> Run as Administrator
-python winnytool.py
-```
+> **Tip:** Run as Administrator for full functionality (hardening fixes, service changes, Windows Update actions).
+
+---
+
+## Features
+
+### Dashboard
+System information at a glance — OS, CPU, RAM, GPU, disk drives, uptime, and antivirus status. Quick-action buttons launch any scan with a single click.
+
+![Dashboard](screenshots/dashboard.png)
+
+---
+
+### CVE Scanner
+Scans your system against a local database of **36 real Windows CVEs** (2024-2026) focused on actively exploited vulnerabilities. The scanner cross-references your installed Windows updates and OS build date to avoid false positives — if your cumulative update already covers a CVE, it won't flag it.
+
+Each finding shows:
+- **Severity badge** (Critical / High / Medium / Low)
+- Description and affected software
+- **Suggested fix** with manual instructions
+- Three action buttons: **View Advisory** (opens MSRC), **Download KB** (opens Update Catalog), **Open Windows Update**
+
+![CVE Scanner](screenshots/cve_scanner.png)
+
+**Expand your database** — import from NVD (NIST), CISA KEV feed, custom JSON files, or add entries manually through the GUI. All imports are deduplicated automatically.
+
+---
+
+### Security Grade
+An OpenSCAP-style letter grading system that runs all scan modules and produces a weighted composite score from **A+** to **F**.
+
+**7 scoring categories:**
+| Category | Weight |
+|---|---|
+| Windows Updates | 20% |
+| CVE Exposure | 20% |
+| System Hardening | 20% |
+| Network Security | 15% |
+| Antivirus & Defender | 10% |
+| Account Security | 10% |
+| Disk & Data | 5% |
+
+Includes per-category breakdown with score bars, top 5 prioritized recommendations, and an exportable HTML report with copyable fix commands.
+
+![Security Grade](screenshots/security_grade.png)
+
+---
+
+### System Hardening
+Three tiers of security hardening with full transparency on trade-offs:
+
+| Tier | Checks | For |
+|---|---|---|
+| **Basic** | 8 | Safe for all users — Firewall, Defender, UAC, SMBv1, auto-updates, screen lock |
+| **Moderate** | 10 | Security-conscious users — LLMNR, Credential Guard, BitLocker, audit logging |
+| **Aggressive** | 10 | Maximum security — Script Host disable, macro restrictions, NTLM disable, ASR rules |
+
+Every setting shows its **current status**, **pros**, **cons**, and a one-click **Apply Fix** button.
+
+![Hardening](screenshots/hardening.png)
+
+---
+
+### BSOD Analyzer
+Reads the last 10 Blue Screen of Death events from Windows Event Log, maps **33 known stop codes** to human-readable names, and provides targeted fix suggestions.
+
+- Correlates minidump files from `C:\Windows\Minidump\`
+- Fix buttons: Run SFC, DISM Repair, Check Disk, Update Drivers, Memory Diagnostic
+
+![BSOD Analyzer](screenshots/bsod_analyzer.png)
+
+---
+
+### Router & Network Security
+Inspired by [RouterSecurity.org](https://routersecurity.org), scans your local network for 16 common weak points:
+
+- **DNS Security** — Secure DNS detection (Cloudflare, Google, Quad9, AdGuard), DNS-over-HTTPS status, DNS leak test
+- **Port Scanning** — Scans 13 dangerous ports on your gateway (Telnet, RDP, SNMP, UPnP, backdoor ports)
+- **WiFi Security** — Encryption type validation (flags WEP/Open), WPS detection, signal strength
+- **Network Exposure** — RDP, SMBv1, network discovery, firewall profile status
+- **Privacy** — Proxy settings, hosts file tampering detection
+
+![Router Security](screenshots/router_security.png)
+
+---
+
+### Performance Optimizer
+13 system checks that flag settings slowing down your PC:
+
+Power plan, visual effects, background apps, search indexing, Superfetch, page file, temp files, Game Mode, transparency effects, tips/suggestions, and more. Each finding rated by impact (High/Medium/Low).
+
+![Performance](screenshots/performance.png)
+
+---
+
+### Startup Manager
+Scans registry Run/RunOnce keys, Startup folder, and scheduled tasks. Shows impact estimation based on known heavy applications. Disable or enable startup items directly from the GUI.
+
+![Startup Manager](screenshots/startup_manager.png)
+
+---
+
+### Disk Health
+SMART status, SSD TRIM status, HDD fragmentation analysis, temp file cleanup estimation, and large file finder.
+
+---
+
+### Network Diagnostics
+DNS configuration, latency testing, firewall status, proxy settings, hosts file inspection, TCP auto-tuning.
+
+---
+
+### Windows Update Status
+Patch history, last update date tracking, pending update detection, OS build EOL checking.
+
+---
+
+### Full System Scan
+Run all diagnostics with a single click. Results summary with export options:
+
+| Format | Description |
+|---|---|
+| **HTML Report** | Styled dark-themed report, opens in browser |
+| **Text Report** | Plain `.txt` file |
+| **CSV Export** | Spreadsheet-compatible |
+| **PDF Report** | Text-based PDF (zero dependencies) |
+| **Download All (ZIP)** | All 4 formats bundled in one `.zip` |
+
+![Full Scan](screenshots/full_scan.png)
+
+---
+
+### Security Resources
+Curated hub of 55+ security links:
+- **Tools** — Shields Up!, VirusTotal, Have I Been Pwned, Shodan, Wireshark, Sysinternals
+- **YouTube** — NetworkChuck, John Hammond, The Cyber Mentor, David Bombal, LiveOverflow
+- **CVE Databases** — NVD, MITRE, CISA KEV, MSRC, Exploit-DB
+- **News** — CISA Alerts, Krebs on Security, BleepingComputer, The Hacker News
+- **Communities** — r/cybersecurity, r/netsec, r/sysadmin, Mac Admins Slack, DFIR Discord
+
+---
+
+### UI Scaling
+Preset modes (Compact 80%, Normal 100%, Large 140%) plus a fine-tune slider up to 200%. Settings persist across sessions.
+
+---
+
+### Auto-Updater
+Checks GitHub for new releases. Downloads and installs updates directly — supports `.zip` extraction, `.exe` and `.msi` launch.
+
+---
+
+## CVE Database Management
+
+WinnyTool ships with 36 built-in CVEs (2024-2026) and supports multiple ways to expand:
+
+| Method | Description |
+|---|---|
+| **NVD Feed** | Pull from NIST National Vulnerability Database (free API key required) |
+| **CISA KEV** | Import actively exploited vulnerabilities from CISA's Known Exploited Vulnerabilities catalog |
+| **Manual Entry** | Add custom CVEs through the GUI with full metadata |
+| **JSON Import** | Import files matching the WinnyTool schema |
+| **Folder Import** | Import entire folders of CVE JSON files (compatible with CVE-List repository) |
+
+All imports are deduplicated automatically.
 
 ---
 
@@ -184,103 +198,115 @@ python winnytool.py
 
 ```
 WinnyTool/
-├── winnytool.py              # Main GUI application
-├── requirements.txt          # Dependency info
+├── winnytool.py              # Main GUI application (~3500 lines)
+├── build.py                  # PyInstaller build script
+├── WinnyTool.spec            # PyInstaller spec file
+├── requirements.txt          # Dependencies (stdlib only + optional dev)
 ├── LICENSE                   # GPL v3
 ├── core/
 │   ├── cve_scanner.py        # CVE database matching + feed import
 │   ├── hardening.py          # 3-tier system hardening (28 checks)
-│   ├── bsod_analyzer.py      # BSOD event log parsing
-│   ├── performance.py        # Performance optimization checks
+│   ├── bsod_analyzer.py      # BSOD event log parsing (33 stop codes)
+│   ├── performance.py        # Performance optimization (13 checks)
 │   ├── startup_mgr.py        # Startup item management
-│   ├── disk_health.py        # Disk diagnostics
+│   ├── disk_health.py        # Disk diagnostics + cleanup
 │   ├── network_diag.py       # Network diagnostics
 │   ├── winupdate.py          # Windows Update status
+│   ├── router_security.py    # Router & network security (16 checks)
+│   ├── grading.py            # Security grading (A+ to F)
+│   ├── resources.py          # Curated security resources (55+ links)
 │   ├── sysinfo.py            # System information collection
-│   ├── router_security.py    # Router & network security scanner (16 checks)
-│   ├── grading.py            # OpenSCAP-style security grading (A+ to F)
-│   ├── resources.py          # Curated security resources hub (55+ links)
 │   ├── updater.py            # GitHub release auto-updater
-│   ├── reporter.py           # HTML/text report generation
+│   ├── reporter.py           # HTML/Text/CSV/PDF report generation
 │   └── history.py            # SQLite scan history
-└── data/
-    ├── cve_db.json           # CVE database (36 entries, 2024-2026)
-    └── settings.json         # User preferences (UI scale, etc.)
+├── data/
+│   ├── cve_db.json           # CVE database (36 entries, 2024-2026)
+│   └── settings.json         # User preferences (UI scale, etc.)
+├── assets/
+│   └── winnytool.ico         # Application icon
+├── installer/
+│   ├── winnytool_setup.nsi   # NSIS installer script
+│   ├── inno_setup.iss        # Inno Setup installer script
+│   └── BUILD_INSTALLER.md    # Build instructions
+├── screenshots/              # README screenshots
+└── .github/
+    └── workflows/
+        └── build.yml         # Auto-build .exe + installer on release
 ```
+
+---
+
+## Building from Source
+
+### Run directly
+```bash
+python winnytool.py
+```
+
+### Build standalone .exe
+```bash
+pip install pyinstaller
+python build.py
+# Output: dist/WinnyTool.exe
+```
+
+### Build installer
+See [installer/BUILD_INSTALLER.md](installer/BUILD_INSTALLER.md) for full instructions.
 
 ---
 
 ## Compatibility
 
-- Uses **PowerShell CIM instances** instead of WMIC, fully compatible with Windows 11 builds where WMIC has been removed
-- Tested on Windows 11 Build 26200
+- **Windows 10** and **Windows 11** (tested on Build 26200)
+- Uses PowerShell CIM instances instead of WMIC (compatible with Win11 builds where WMIC is removed)
+- No external Python packages required
 
 ---
 
 ## License
 
-This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the GNU General Public License v3.0 — see the [LICENSE](LICENSE) file for details.
 
 ---
 
 ## Changelog
 
-### v1.4.0 (2026-03-21)
+### v1.5.0 (2026-03-26)
 **New Features:**
-- **Manual Fix Instructions** - CVE scan results now show "How to fix manually" instructions in light blue text on each finding, with step-by-step guidance
-- **Security Grade Report Export** - Export your security grade as a styled HTML report with overall grade, category breakdown, recommendations, and copyable fix commands
-- **Check for Updates Page** - New sidebar page showing current version with a "Check Now" button for on-demand update checks
-- **Auto-Update with Install** - Update prompt now downloads and installs updates directly (supports .zip extraction, .exe/.msi launch) instead of just opening the browser
+- **PDF Report Export** — Generate text-based PDF reports using raw PDF 1.4 syntax, zero external dependencies
+- **Download All (ZIP)** — Bundle HTML + Text + CSV + PDF into a single timestamped `.zip` file
+- **Full Scan Export Buttons** — HTML Report, Text Report, CSV Export, PDF Report, Download All, Security Grade, and per-category View Details buttons
+- **Windows Installer** — Professional NSIS/Inno Setup installer with Start Menu shortcuts, Desktop icon, and Add/Remove Programs entry
+- **Standalone .exe** — PyInstaller packaging for single-file portable executable
+- **GitHub Actions CI** — Auto-builds `.exe` and installer on new releases
 
 **Improvements:**
-- CVE result cards now show three action types: View Advisory, Apply Fix, and manual fix instructions
-- Security Grade export includes copyable command blocks for each recommendation
-- Updater correctly points to AES256Afro/WinnyTool GitHub repo
-- Version bumped to 1.4.0
+- CVE scanner now uses cumulative update date comparison to prevent false positives on fully-patched systems
+- AdGuard DNS (94.140.14.x) recognized as secure DNS provider in router security scanner
+- Updater silently handles missing releases instead of printing console errors
+- Full scan results page now has export and navigation buttons instead of just a summary
+
+### v1.4.0 (2026-03-21)
+- Manual fix instructions on CVE findings
+- Security Grade HTML report export
+- Check for Updates sidebar page
+- Auto-update with download and install
 
 ### v1.3.0 (2026-03-21)
-**New Features:**
-- **Router & Network Security Scanner** - 16 checks covering DNS security (DoH, leak detection), gateway port scanning (13 dangerous ports), WiFi encryption validation, UPnP detection, RDP/SMB exposure, firewall profiles, hosts file tampering, and proxy settings
-- **Security Grading System** - OpenSCAP-style A+ through F grading with 7 weighted categories, per-category score bars, color-coded grade display, and top 5 prioritized recommendations
-- **Security Resources Hub** - 55+ curated links across 6 categories: security tools, YouTube channels, CVE databases, threat news, Reddit communities, and Slack/Discord communities
-
-**Improvements:**
-- Three new sidebar pages fully integrated with existing dark theme
-- Security Grade runs all scan modules and produces a composite weighted score
-- Router scanner uses socket-based port probing with 1-second timeouts
+- Router & Network Security Scanner (16 checks)
+- Security Grading System (A+ to F)
+- Security Resources Hub (55+ links)
 
 ### v1.2.0 (2026-03-21)
-**New Features:**
-- **UI Scaling** - Settings page with Compact/Normal/Large presets and a fine-tune slider (80%-200%). Persists across sessions
-- **Focused CVE Database** - Stripped pre-2024 entries, now ships with 36 CVEs covering 2024-2026 only
-- **Dual CVE Action Buttons** - Each CVE now has two buttons: "View CVE" (opens MSRC advisory) and "Apply Fix" (runs local remediation — installs KB patches, disables vulnerable services, applies registry mitigations)
-- **Folder/File CVE Import** - Drag-and-drop or browse to import entire folders of CVE JSON files (compatible with CVE-List repository format)
-
-**Improvements:**
-- CVE fix actions now execute locally instead of just linking to Microsoft Update Catalog
-- Local fixes include: `wusa.exe` KB installation, service disable via `sc`, registry mitigations, and PowerShell commands
-- All fix actions require user confirmation before executing
+- UI Scaling (80%-200% with presets)
+- Focused CVE Database (2024-2026 only)
+- Dual CVE action buttons (View + Apply Fix)
+- Folder/File CVE import
 
 ### v1.1.0 (2026-03-21)
-**New Features:**
-- **System Hardening** - 3-tier hardening page (Basic/Moderate/Aggressive) with 28 security checks, pros/cons for each setting, and one-click apply
-- **CVE Feed Import** - Pull CVEs from NVD (NIST) and CISA KEV feeds directly in the GUI
-- **Manual CVE Entry** - Add custom CVEs through a form with full metadata fields
-- **Custom JSON Import** - Import CVE databases from any JSON file matching the WinnyTool schema
-- Automatic CVE deduplication across all import sources
-
-**Improvements:**
-- CVE scanner now supports version-aware matching and KB patch cross-referencing
-- Hardening checks read live system state via registry and system commands
-- All new GUI pages follow the existing dark theme with sidebar navigation
+- System Hardening (28 checks, 3 tiers)
+- CVE Feed Import (NVD, CISA KEV)
+- Manual CVE Entry + JSON Import
 
 ### v1.0.0 (2026-03-21)
 - Initial release
-- CVE Scanner with 30 built-in CVEs (2017-2025)
-- BSOD Analyzer with 33 stop codes
-- Performance Optimizer with 13 system checks
-- Startup Manager with disable/enable support
-- Disk Health, Network Diagnostics, Windows Update status
-- System Info Dashboard
-- HTML Report Export, Scan History, GitHub Auto-Updater
-- Dark-themed GUI with clickable fix buttons

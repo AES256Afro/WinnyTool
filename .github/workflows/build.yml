@@ -1,0 +1,68 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  WINNYTOOL_VERSION: "1.4.0"
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install PyInstaller
+        run: pip install pyinstaller>=6.0
+
+      - name: Build executable
+        run: >
+          pyinstaller
+          --onefile
+          --windowed
+          --icon=assets/winnytool.ico
+          --name=WinnyTool
+          --add-data "data;data"
+          --add-data "assets;assets"
+          winnytool.py
+
+      - name: Install NSIS
+        run: choco install nsis -y --no-progress
+
+      - name: Build installer with NSIS
+        run: makensis installer\winnytool_setup.nsi
+
+      - name: Upload portable executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: WinnyTool-Portable
+          path: dist/WinnyTool.exe
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: WinnyTool-Installer
+          path: dist/WinnyTool_Setup_v${{ env.WINNYTOOL_VERSION }}.exe
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: WinnyTool ${{ github.ref_name }}
+          files: |
+            dist/WinnyTool.exe
+            dist/WinnyTool_Setup_v${{ env.WINNYTOOL_VERSION }}.exe
+          generate_release_notes: true
